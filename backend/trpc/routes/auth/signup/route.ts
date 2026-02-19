@@ -34,11 +34,12 @@ export const signupProcedure = publicProcedure
           name: user.name,
         },
       };
-    } catch (error: any) {
-      console.error('[Auth] Signup error:', error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to create account';
+      console.error('[Auth] Signup error:', message);
       throw new TRPCError({
         code: 'BAD_REQUEST',
-        message: error.message || 'Failed to create account',
+        message,
       });
     }
   });

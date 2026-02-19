@@ -30,7 +30,7 @@ class UserStore {
       };
       this.users.set(testUser.id, testUser);
       this.initialized = true;
-      console.log('[UserStore] Test user created: test@example.com / password123');
+      console.log('[UserStore] Test user created: test@example.com');
       console.log('[UserStore] Total users:', this.users.size);
     } catch (error) {
       console.error('[UserStore] Initialization failed:', error);
@@ -39,6 +39,8 @@ class UserStore {
   }
 
   async createUser(email: string, password: string, name: string): Promise<User> {
+    await this.initialize();
+
     const existingUser = Array.from(this.users.values()).find(u => u.email.toLowerCase() === email.toLowerCase());
     
     if (existingUser) {
@@ -47,7 +49,7 @@ class UserStore {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user: User = {
-      id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
       email: email.toLowerCase(),
       passwordHash,
       name,
@@ -76,7 +78,8 @@ class UserStore {
     return bcrypt.compare(password, user.passwordHash);
   }
 
-  getAllUsers(): User[] {
+  async getAllUsers(): Promise<User[]> {
+    await this.initialize();
     return Array.from(this.users.values());
   }
 }
