@@ -190,6 +190,7 @@ export default function SessionScreen() {
   }, [session?.tempoBpm, audioPlaybackRate]);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const hasAutoScrolledRef = useRef<boolean>(false);
+  const initialViewportHeightRef = useRef<number>(height);
   const shouldAnimate = useMemo(() => !isPaused, [isPaused]);
   const isSynchroSession = session?.id === 'lifting-from-sadness';
   const isDissolutionOfAnxiousness = session?.id === 'dissolution-anxiousness';
@@ -216,15 +217,20 @@ export default function SessionScreen() {
   }, [session, isDynamicEnergyFlow]);
 
   useEffect(() => {
+    hasAutoScrolledRef.current = false;
+    initialViewportHeightRef.current = height;
+  }, [sessionId, height]);
+
+  useEffect(() => {
     if (hasAutoScrolledRef.current) return;
-    const timeout = setTimeout(() => {
-      if (scrollViewRef.current) {
-        scrollViewRef.current.scrollTo({ x: 0, y: height, animated: false });
-        hasAutoScrolledRef.current = true;
-      }
-    }, 80);
+    const frame = requestAnimationFrame(() => {
+      if (!scrollViewRef.current) return;
+      scrollViewRef.current.scrollTo({ x: 0, y: initialViewportHeightRef.current, animated: false });
+      hasAutoScrolledRef.current = true;
+    });
+
     return () => {
-      clearTimeout(timeout);
+      cancelAnimationFrame(frame);
     };
   }, [sessionId]);
 
@@ -1193,7 +1199,7 @@ export default function SessionScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-        <View style={{ height }} />
+        <View style={{ height: initialViewportHeightRef.current }} />
         <View style={styles.sheet} testID="session-info-sheet">
           <View style={styles.sheetHandle} testID="session-sheet-handle" />
           <View style={styles.sheetContent}>
