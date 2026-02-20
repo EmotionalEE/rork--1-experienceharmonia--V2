@@ -19,7 +19,7 @@ import * as Haptics from "expo-haptics";
 import { harmoniaColors } from "@/constants/colors";
 import { useJournal } from "@/providers/JournalProvider";
 
-const emotionOptions = ["Anxious", "Calm", "Clarity", "Courage", "Joy", "Peace"] as const;
+const emotionOptions = ["Anxious", "Stressed", "Sad", "Angry", "Calm", "Happy", "Inspired", "Energized"] as const;
 
 type EmotionOption = (typeof emotionOptions)[number];
 
