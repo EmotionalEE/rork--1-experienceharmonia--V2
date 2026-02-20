@@ -40,17 +40,17 @@ const sliderFeelingLabels: SliderFeelingRange[] = [
 const SLIDER_THUMB_SIZE = 28;
 
 const palette = {
-  bg0: "#070A12",
-  bg1: "#0B1022",
-  card: "rgba(255,255,255,0.08)",
-  card2: "rgba(255,255,255,0.10)",
-  stroke: "rgba(255,255,255,0.14)",
-  strokeStrong: "rgba(255,255,255,0.22)",
-  text: "#F5F7FF",
-  textDim: "rgba(245,247,255,0.78)",
-  textFaint: "rgba(245,247,255,0.58)",
-  teal: "#1FD6C1",
-  blue: "#4AA3FF",
+  bg0: "#0D0907",
+  bg1: "#1A120D",
+  card: "rgba(255,235,210,0.08)",
+  card2: "rgba(255,235,210,0.10)",
+  stroke: "rgba(255,235,210,0.14)",
+  strokeStrong: "rgba(255,235,210,0.22)",
+  text: "#FFF5EB",
+  textDim: "rgba(255,245,235,0.78)",
+  textFaint: "rgba(255,245,235,0.58)",
+  teal: "#E8A54B",
+  blue: "#D4885A",
   gold: "#F8C46C",
   danger: "#FF5A7A",
 };
@@ -281,7 +281,7 @@ export default function JournalEntryScreen() {
     return (
       <View style={styles.container} testID="journalEntry.errorRoot">
         <LinearGradient
-          colors={[palette.bg0, palette.bg1, "#071A24"]}
+          colors={[palette.bg0, palette.bg1, "#1C150E"]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -312,7 +312,7 @@ export default function JournalEntryScreen() {
   return (
     <View style={styles.container} testID="journalEntry.screen">
       <LinearGradient
-        colors={[palette.bg0, palette.bg1, "#071A24"]}
+        colors={[palette.bg0, palette.bg1, "#1C150E"]}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
     width: 320,
     height: 320,
     borderRadius: 260,
-    backgroundColor: "rgba(74,163,255,0.22)",
+    backgroundColor: "rgba(232,165,75,0.18)",
     transform: [{ rotate: "18deg" }],
   },
   glowBottomLeft: {
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
     width: 360,
     height: 360,
     borderRadius: 320,
-    backgroundColor: "rgba(31,214,193,0.16)",
+    backgroundColor: "rgba(212,136,90,0.14)",
     transform: [{ rotate: "-10deg" }],
   },
 
