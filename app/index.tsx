@@ -7,20 +7,18 @@ import {
   TouchableOpacity,
   Platform,
   Animated,
-  Modal,
-  TextInput,
   Pressable,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
-
-import Svg, { Circle, Polygon, Path, G } from "react-native-svg";
-import { User, Crown, Sparkles, MessageCircle, X, Send, Check } from "lucide-react-native";
+import { User, Crown, Sparkles, MessageCircle, Check } from "lucide-react-native";
 import { emotionalStates, sessions } from "@/constants/sessions";
 import { useUserProgress } from "@/providers/UserProgressProvider";
 import { useVibroacoustic } from "@/providers/VibroacousticProvider";
 import { EmotionalState, Session } from "@/types/session";
+import { getEmotionIcon, getDetoxSessionIcon } from "@/components/EmotionIcons";
+import AIChatModal from "@/components/AIChatModal";
 import * as Haptics from "expo-haptics";
 
 const palette = {
@@ -94,9 +92,6 @@ export default function HomeScreen() {
   const [selectedEmotion, setSelectedEmotion] = useState<EmotionalState | null>(null);
   const [targetEmotionId, setTargetEmotionId] = useState<string | null>(null);
   const [showAIChatModal, setShowAIChatModal] = useState(false);
-  const [chatMessages, setChatMessages] = useState<{ role: "user" | "ai"; text: string }[]>([]);
-  const [userMessage, setUserMessage] = useState("");
-  const [isAITyping, setIsAITyping] = useState(false);
 
   const [isInitialized, setIsInitialized] = useState(false);
   const fadeAnim = useMemo(() => new Animated.Value(0), []);
@@ -130,13 +125,6 @@ export default function HomeScreen() {
     });
   }, [router]);
 
-  const handleChooseStatePress = useCallback(async () => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    scrollRef.current?.scrollTo({ y: emotionsSectionY, animated: true });
-  }, [emotionsSectionY]);
-
   const handleSessionPress = useCallback(async (session: Session) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -153,532 +141,15 @@ export default function HomeScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    if (chatMessages.length === 0) {
-      setChatMessages([
-        {
-          role: 'ai',
-          text: "Hello! I'm here to support you on your journey. How are you feeling today?",
-        },
-      ]);
-    }
     setShowAIChatModal(true);
-  }, [chatMessages.length]);
-
-  const generateAIResponse = useCallback((userMsg: string): string => {
-    const lowercaseMsg = userMsg.toLowerCase();
-    
-    if (lowercaseMsg.includes('anxious') || lowercaseMsg.includes('anxiety') || lowercaseMsg.includes('worried')) {
-      return "I hear that you're feeling anxious. That's completely valid. Have you noticed what triggers this feeling? Sometimes identifying patterns can help us address them. Would breathing exercises or grounding techniques help you right now?";
-    }
-    
-    if (lowercaseMsg.includes('stressed') || lowercaseMsg.includes('stress') || lowercaseMsg.includes('overwhelmed')) {
-      return "Stress can be so overwhelming. Remember to be gentle with yourself. What's been weighing on your mind lately? Sometimes breaking things down into smaller pieces makes them more manageable.";
-    }
-    
-    if (lowercaseMsg.includes('sad') || lowercaseMsg.includes('down') || lowercaseMsg.includes('depressed')) {
-      return "I'm sorry you're going through this. Sadness is a natural part of being human. Would you like to talk about what's bringing these feelings up? I'm here to listen without judgment.";
-    }
-    
-    if (lowercaseMsg.includes('happy') || lowercaseMsg.includes('good') || lowercaseMsg.includes('great') || lowercaseMsg.includes('better')) {
-      return "That's wonderful to hear! What's been contributing to these positive feelings? Acknowledging and celebrating our joy is just as important as processing difficult emotions.";
-    }
-    
-    if (lowercaseMsg.includes('angry') || lowercaseMsg.includes('frustrated') || lowercaseMsg.includes('mad')) {
-      return "Anger often shows up when something important to us is being challenged. What's underneath that anger for you? Sometimes it helps to explore what needs aren't being met.";
-    }
-    
-    if (lowercaseMsg.includes('calm') || lowercaseMsg.includes('peaceful') || lowercaseMsg.includes('relaxed')) {
-      return "Finding moments of calm is so valuable. What practices or experiences help you tap into this peaceful state? Building on what works can deepen your sense of tranquility.";
-    }
-    
-    if (lowercaseMsg.includes('tired') || lowercaseMsg.includes('exhausted') || lowercaseMsg.includes('drained')) {
-      return "Rest is essential for healing and growth. Are you getting enough quality sleep? Sometimes our bodies are telling us we need to slow down and recharge. What would genuine rest look like for you?";
-    }
-    
-    if (lowercaseMsg.includes('session') || lowercaseMsg.includes('practice') || lowercaseMsg.includes('meditation')) {
-      return "It sounds like you're interested in your practice! Consistency is more important than perfection. How has your journey with the sessions been so far? What changes have you noticed?";
-    }
-    
-    if (lowercaseMsg.length < 10) {
-      return "I'd love to hear more about that. Can you tell me what's going on? The more you share, the better I can support you.";
-    }
-    
-    return "Thank you for sharing that with me. Your feelings are valid and important. How long have you been experiencing this? Sometimes understanding the timeline helps us see patterns and progress.";
-  }, []);
-
-  const handleSendMessage = useCallback(async () => {
-    const trimmedMessage = userMessage.trim();
-    if (!trimmedMessage) return;
-    
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-
-    const newUserMessage = { role: 'user' as const, text: trimmedMessage };
-    setChatMessages((prev) => [...prev, newUserMessage]);
-    setUserMessage("");
-    setIsAITyping(true);
-
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(trimmedMessage);
-      setChatMessages((prev) => [...prev, { role: 'ai' as const, text: aiResponse }]);
-      setIsAITyping(false);
-    }, 1200);
-  }, [userMessage, generateAIResponse]);
-
-  const getEmotionIconById = useCallback((emotionId: string, color: string = "#fff") => {
-    const geometryIcons: Record<string, React.ReactNode> = {
-      anxious: (
-        <Svg width={32} height={32} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            <Circle cx={12} cy={12} r={9.5} fill="none" stroke={color} strokeWidth={1.5} />
-            <Circle cx={12} cy={12} r={5} fill="none" stroke={color} strokeWidth={1} />
-            <Path d="M12 4 L16 8 L12 12 L8 8 Z" fill="none" stroke={color} strokeWidth={1} />
-            <Circle cx={12} cy={12} r={13.5} fill="none" stroke={color} strokeOpacity={0.12} strokeWidth={0.6} />
-            {Array.from({ length: 4 }).map((_, i) => {
-              const angle = (i * 90) * Math.PI / 180;
-              const r = 12.2;
-              const size = 1.4;
-              const cx = 12 + Math.cos(angle) * r;
-              const cy = 12 + Math.sin(angle) * r;
-              return (
-                <Polygon key={`anx-spark-${i}`} points={`${cx},${cy - size} ${cx + size},${cy} ${cx},${cy + size} ${cx - size},${cy}`} fill={color} opacity={0.6} />
-              );
-            })}
-          </G>
-        </Svg>
-      ),
-      stressed: (
-        <Svg width={32} height={32} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            <Polygon points="12,2 22,20 2,20" fill="none" stroke={color} strokeWidth={1.6} />
-            <Circle cx={12} cy={14} r={3.6} fill="none" stroke={color} strokeWidth={1} />
-            <Path d="M12 8 L15 11 L12 14 L9 11 Z" fill="none" stroke={color} strokeWidth={1} />
-            <Path d="M4 6 L20 6" stroke={color} strokeOpacity={0.25} strokeWidth={0.8} strokeDasharray="3,2" />
-            <Circle cx={12} cy={12} r={13.5} fill="none" stroke={color} strokeOpacity={0.12} strokeWidth={0.6} />
-          </G>
-        </Svg>
-      ),
-      sad: (
-        <Svg width={32} height={32} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            {Array.from({ length: 3 }).map((_, i) => {
-              const r = 4 + i * 3;
-              const w = 0.6 + i * 0.2;
-              const dash = i % 2 === 0 ? '3,2' : undefined;
-              return (
-                <Circle
-                  key={i}
-                  cx={12}
-                  cy={12}
-                  r={r}
-                  fill="none"
-                  stroke={color}
-                  strokeOpacity={0.85}
-                  strokeWidth={w}
-                  strokeDasharray={dash}
-                />
-              );
-            })}
-            {Array.from({ length: 6 }).map((_, i) => {
-              const angle = (i * Math.PI) / 3;
-              const cx = 12 + 5.2 * Math.cos(angle);
-              const cy = 12 + 5.2 * Math.sin(angle);
-              return (
-                <Circle key={`f${i}`} cx={cx} cy={cy} r={4.8} fill="none" stroke={color} strokeOpacity={0.18} strokeWidth={0.6} />
-              );
-            })}
-            <Polygon points="12,8 14,13 10,13" fill="none" stroke={color} strokeWidth={0.8} opacity={0.75} />
-            <Polygon points="12,16 14,11 10,11" fill="none" stroke={color} strokeWidth={0.8} opacity={0.6} />
-            <Circle cx={12} cy={12} r={1.1} fill={color} />
-            {Array.from({ length: 4 }).map((_, i) => {
-              const angle = (i * 90 + 45) * Math.PI / 180;
-              const x1 = 12 + Math.cos(angle) * 7;
-              const y1 = 12 + Math.sin(angle) * 7;
-              const x2 = 12 + Math.cos(angle) * 9.5;
-              const y2 = 12 + Math.sin(angle) * 9.5;
-              return <Path key={`sad-ray-${i}`} d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke={color} strokeOpacity={0.25} strokeWidth={0.8} />;
-            })}
-          </G>
-        </Svg>
-      ),
-      angry: (
-        <Svg width={32} height={32} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            <Polygon points="12,2 20,8 20,16 12,22 4,16 4,8" fill="none" stroke={color} strokeWidth={1.6} />
-            <Polygon points="12,6 16,10 12,14 8,10" fill="none" stroke={color} strokeWidth={1.1} />
-            {Array.from({ length: 6 }).map((_, i) => {
-              const angle = (i * 60) * Math.PI / 180;
-              const x1 = 12 + Math.cos(angle) * 6.5;
-              const y1 = 12 + Math.sin(angle) * 6.5;
-              const x2 = 12 + Math.cos(angle) * 10.5;
-              const y2 = 12 + Math.sin(angle) * 10.5;
-              return <Path key={`ang-ray-${i}`} d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke={color} strokeOpacity={0.35} strokeWidth={1} />;
-            })}
-          </G>
-        </Svg>
-      ),
-      calm: (
-        <Svg width={32} height={32} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            <Circle cx={12} cy={12} r={10.8} fill="none" stroke={color} strokeWidth={1.5} />
-            <Circle cx={12} cy={12} r={7} fill="none" stroke={color} strokeWidth={1} />
-            <Circle cx={12} cy={12} r={2.4} fill="none" stroke={color} strokeWidth={1} />
-            <Circle cx={12} cy={12} r={13.5} fill="none" stroke={color} strokeOpacity={0.12} strokeWidth={0.6} />
-            {Array.from({ length: 12 }).map((_, i) => {
-              const angle = (i * 30) * Math.PI / 180;
-              const x1 = 12 + Math.cos(angle) * 8.5;
-              const y1 = 12 + Math.sin(angle) * 8.5;
-              const x2 = 12 + Math.cos(angle) * 9.5;
-              const y2 = 12 + Math.sin(angle) * 9.5;
-              return <Path key={`calm-wave-${i}`} d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke={color} strokeOpacity={0.2} strokeWidth={0.8} />;
-            })}
-          </G>
-        </Svg>
-      ),
-      inspired: (
-        <Svg width={32} height={32} viewBox="0 0 24 24">
-          <G opacity={0.98}>
-            {Array.from({ length: 12 }).map((_, i) => {
-              const angle = (i * 30) * Math.PI / 180;
-              const inner = 2.6;
-              const isLong = i % 2 === 0;
-              const outer = isLong ? 12.4 : 9.2;
-              const x1 = 12 + Math.cos(angle) * inner;
-              const y1 = 12 + Math.sin(angle) * inner;
-              const x2 = 12 + Math.cos(angle) * outer;
-              const y2 = 12 + Math.sin(angle) * outer;
-              const w = isLong ? 1.3 : 0.9;
-              return (
-                <Path
-                  key={`ray-${i}`}
-                  d={`M ${x1} ${y1} L ${x2} ${y2}`}
-                  stroke={color}
-                  strokeOpacity={isLong ? 0.95 : 0.7}
-                  strokeWidth={w}
-                />
-              );
-            })}
-            <Circle cx={12} cy={12} r={3.6} fill="none" stroke={color} strokeOpacity={0.95} strokeWidth={1.5} />
-            <Polygon
-              points="12,9.6 12.8,11.2 14.4,12 12.8,12.8 12,14.4 11.2,12.8 9.6,12 11.2,11.2"
-              fill="none"
-              stroke={color}
-              strokeOpacity={0.95}
-              strokeWidth={1}
-            />
-            <Circle cx={12} cy={12} r={1} fill={color} />
-            <Circle cx={12} cy={12} r={14} fill="none" stroke={color} strokeOpacity={0.12} strokeWidth={0.6} />
-            {Array.from({ length: 8 }).map((_, i) => {
-              const angle = (i * 45) * Math.PI / 180;
-              const r = 13.4;
-              const size = 1.6;
-              const cx = 12 + Math.cos(angle) * r;
-              const cy = 12 + Math.sin(angle) * r;
-              return (
-                <Polygon
-                  key={`spark-${i}`}
-                  points={`${cx},${cy - size} ${cx + size},${cy} ${cx},${cy + size} ${cx - size},${cy}`}
-                  fill={color}
-                  opacity={0.85}
-                />
-              );
-            })}
-          </G>
-        </Svg>
-      ),
-      happy: (
-        <Svg width={32} height={32} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            {Array.from({ length: 8 }).map((_, i) => {
-              const angle = (i * 45) * Math.PI / 180;
-              const x1 = 12 + Math.cos(angle) * 6.8;
-              const y1 = 12 + Math.sin(angle) * 6.8;
-              const x2 = 12 + Math.cos(angle) * 11.2;
-              const y2 = 12 + Math.sin(angle) * 11.2;
-              return <Path key={i} d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke={color} strokeWidth={1.1} />;
-            })}
-            <Circle cx={12} cy={12} r={4.5} fill="none" stroke={color} strokeWidth={1.5} />
-            {Array.from({ length: 6 }).map((_, i) => {
-              const angle = (i * 60) * Math.PI / 180;
-              const r = 13;
-              const size = 1.2;
-              const cx = 12 + Math.cos(angle) * r;
-              const cy = 12 + Math.sin(angle) * r;
-              return (
-                <Circle key={`happy-dot-${i}`} cx={cx} cy={cy} r={size / 2} fill={color} opacity={0.7} />
-              );
-            })}
-          </G>
-        </Svg>
-      ),
-      energized: (
-        <Svg width={32} height={32} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            <Polygon points="12,2 18,8 18,16 12,22 6,16 6,8" fill="none" stroke={color} strokeWidth={1.6} />
-            <Polygon points="12,6 15,9 15,15 12,18 9,15 9,9" fill="none" stroke={color} strokeWidth={1.1} />
-            <Circle cx={12} cy={12} r={2.2} fill={color} />
-            {Array.from({ length: 8 }).map((_, i) => {
-              const angle = (i * 45) * Math.PI / 180;
-              const x1 = 12 + Math.cos(angle) * 5.5;
-              const y1 = 12 + Math.sin(angle) * 5.5;
-              const x2 = 12 + Math.cos(angle) * 11.5;
-              const y2 = 12 + Math.sin(angle) * 11.5;
-              return <Path key={`en-ray-${i}`} d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke={color} strokeOpacity={0.4} strokeWidth={1.1} />;
-            })}
-          </G>
-        </Svg>
-      ),
-    };
-    
-    return geometryIcons[emotionId] || (
-      <Svg width={32} height={32} viewBox="0 0 24 24">
-        <Circle cx={12} cy={12} r={10} fill="none" stroke={color} strokeWidth={1.5} />
-        <Circle cx={12} cy={12} r={13.5} fill="none" stroke={color} strokeOpacity={0.12} strokeWidth={0.6} />
-      </Svg>
-    );
   }, []);
 
   const getSessionIcon = useCallback((session: Session) => {
-    const emotionId = session.targetEmotions[0];
     if (session.id === '741hz-detox') {
-      return (
-        <Svg width={32} height={32} viewBox="0 0 24 24">
-          <G opacity={1}>
-            {Array.from({ length: 8 }).map((_, i) => {
-              const angle = (i * 45) * Math.PI / 180;
-              const x1 = 12 + Math.cos(angle) * 6.8;
-              const y1 = 12 + Math.sin(angle) * 6.8;
-              const x2 = 12 + Math.cos(angle) * 11.2;
-              const y2 = 12 + Math.sin(angle) * 11.2;
-              return <Path key={i} d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke="#ffffff" strokeWidth={1.8} strokeOpacity={1} />;
-            })}
-            <Circle cx={12} cy={12} r={4.5} fill="none" stroke="#ffffff" strokeWidth={2} strokeOpacity={1} />
-            <Circle cx={12} cy={12} r={8} fill="none" stroke="#ffffff" strokeWidth={0.8} strokeOpacity={0.4} />
-            {Array.from({ length: 6 }).map((_, i) => {
-              const angle = (i * 60) * Math.PI / 180;
-              const r = 13;
-              const size = 1.6;
-              const cx = 12 + Math.cos(angle) * r;
-              const cy = 12 + Math.sin(angle) * r;
-              return (
-                <Circle key={`happy-dot-${i}`} cx={cx} cy={cy} r={size / 2} fill="#ffffff" opacity={1} />
-              );
-            })}
-          </G>
-        </Svg>
-      );
+      return getDetoxSessionIcon();
     }
-    return getEmotionIconById(emotionId);
-  }, [getEmotionIconById]);
-
-  const getEmotionIconWithSmallerSize = useCallback((emotion: EmotionalState, color: string = "#fff") => {
-    const geometryIcons: Record<string, React.ReactNode> = {
-      anxious: (
-        <Svg width={30} height={30} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            <Circle cx={12} cy={12} r={9.5} fill="none" stroke={color} strokeWidth={1.5} />
-            <Circle cx={12} cy={12} r={5} fill="none" stroke={color} strokeWidth={1} />
-            <Path d="M12 4 L16 8 L12 12 L8 8 Z" fill="none" stroke={color} strokeWidth={1} />
-            <Circle cx={12} cy={12} r={13.5} fill="none" stroke={color} strokeOpacity={0.12} strokeWidth={0.6} />
-            {Array.from({ length: 4 }).map((_, i) => {
-              const angle = (i * 90) * Math.PI / 180;
-              const r = 12.2;
-              const size = 1.4;
-              const cx = 12 + Math.cos(angle) * r;
-              const cy = 12 + Math.sin(angle) * r;
-              return (
-                <Polygon key={`anx-spark-${i}`} points={`${cx},${cy - size} ${cx + size},${cy} ${cx},${cy + size} ${cx - size},${cy}`} fill={color} opacity={0.6} />
-              );
-            })}
-          </G>
-        </Svg>
-      ),
-      stressed: (
-        <Svg width={30} height={30} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            <Polygon points="12,2 22,20 2,20" fill="none" stroke={color} strokeWidth={1.6} />
-            <Circle cx={12} cy={14} r={3.6} fill="none" stroke={color} strokeWidth={1} />
-            <Path d="M12 8 L15 11 L12 14 L9 11 Z" fill="none" stroke={color} strokeWidth={1} />
-            <Path d="M4 6 L20 6" stroke={color} strokeOpacity={0.25} strokeWidth={0.8} strokeDasharray="3,2" />
-            <Circle cx={12} cy={12} r={13.5} fill="none" stroke={color} strokeOpacity={0.12} strokeWidth={0.6} />
-          </G>
-        </Svg>
-      ),
-      sad: (
-        <Svg width={30} height={30} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            {Array.from({ length: 3 }).map((_, i) => {
-              const r = 4 + i * 3;
-              const w = 0.6 + i * 0.2;
-              const dash = i % 2 === 0 ? '3,2' : undefined;
-              return (
-                <Circle
-                  key={i}
-                  cx={12}
-                  cy={12}
-                  r={r}
-                  fill="none"
-                  stroke={color}
-                  strokeOpacity={0.85}
-                  strokeWidth={w}
-                  strokeDasharray={dash}
-                />
-              );
-            })}
-            {Array.from({ length: 6 }).map((_, i) => {
-              const angle = (i * Math.PI) / 3;
-              const cx = 12 + 5.2 * Math.cos(angle);
-              const cy = 12 + 5.2 * Math.sin(angle);
-              return (
-                <Circle key={`f${i}`} cx={cx} cy={cy} r={4.8} fill="none" stroke={color} strokeOpacity={0.18} strokeWidth={0.6} />
-              );
-            })}
-            <Polygon points="12,8 14,13 10,13" fill="none" stroke={color} strokeWidth={0.8} opacity={0.75} />
-            <Polygon points="12,16 14,11 10,11" fill="none" stroke={color} strokeWidth={0.8} opacity={0.6} />
-            <Circle cx={12} cy={12} r={1.1} fill={color} />
-            {Array.from({ length: 4 }).map((_, i) => {
-              const angle = (i * 90 + 45) * Math.PI / 180;
-              const x1 = 12 + Math.cos(angle) * 7;
-              const y1 = 12 + Math.sin(angle) * 7;
-              const x2 = 12 + Math.cos(angle) * 9.5;
-              const y2 = 12 + Math.sin(angle) * 9.5;
-              return <Path key={`sad-ray-${i}`} d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke={color} strokeOpacity={0.25} strokeWidth={0.8} />;
-            })}
-          </G>
-        </Svg>
-      ),
-      angry: (
-        <Svg width={30} height={30} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            <Polygon points="12,2 20,8 20,16 12,22 4,16 4,8" fill="none" stroke={color} strokeWidth={1.6} />
-            <Polygon points="12,6 16,10 12,14 8,10" fill="none" stroke={color} strokeWidth={1.1} />
-            {Array.from({ length: 6 }).map((_, i) => {
-              const angle = (i * 60) * Math.PI / 180;
-              const x1 = 12 + Math.cos(angle) * 6.5;
-              const y1 = 12 + Math.sin(angle) * 6.5;
-              const x2 = 12 + Math.cos(angle) * 10.5;
-              const y2 = 12 + Math.sin(angle) * 10.5;
-              return <Path key={`ang-ray-${i}`} d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke={color} strokeOpacity={0.35} strokeWidth={1} />;
-            })}
-          </G>
-        </Svg>
-      ),
-      calm: (
-        <Svg width={30} height={30} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            <Circle cx={12} cy={12} r={10.8} fill="none" stroke={color} strokeWidth={1.5} />
-            <Circle cx={12} cy={12} r={7} fill="none" stroke={color} strokeWidth={1} />
-            <Circle cx={12} cy={12} r={2.4} fill="none" stroke={color} strokeWidth={1} />
-            <Circle cx={12} cy={12} r={13.5} fill="none" stroke={color} strokeOpacity={0.12} strokeWidth={0.6} />
-            {Array.from({ length: 12 }).map((_, i) => {
-              const angle = (i * 30) * Math.PI / 180;
-              const x1 = 12 + Math.cos(angle) * 8.5;
-              const y1 = 12 + Math.sin(angle) * 8.5;
-              const x2 = 12 + Math.cos(angle) * 9.5;
-              const y2 = 12 + Math.sin(angle) * 9.5;
-              return <Path key={`calm-wave-${i}`} d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke={color} strokeOpacity={0.2} strokeWidth={0.8} />;
-            })}
-          </G>
-        </Svg>
-      ),
-      inspired: (
-        <Svg width={30} height={30} viewBox="0 0 24 24">
-          <G opacity={0.98}>
-            {Array.from({ length: 12 }).map((_, i) => {
-              const angle = (i * 30) * Math.PI / 180;
-              const inner = 2.6;
-              const isLong = i % 2 === 0;
-              const outer = isLong ? 12.4 : 9.2;
-              const x1 = 12 + Math.cos(angle) * inner;
-              const y1 = 12 + Math.sin(angle) * inner;
-              const x2 = 12 + Math.cos(angle) * outer;
-              const y2 = 12 + Math.sin(angle) * outer;
-              const w = isLong ? 1.3 : 0.9;
-              return (
-                <Path
-                  key={`ray-${i}`}
-                  d={`M ${x1} ${y1} L ${x2} ${y2}`}
-                  stroke={color}
-                  strokeOpacity={isLong ? 0.95 : 0.7}
-                  strokeWidth={w}
-                />
-              );
-            })}
-            <Circle cx={12} cy={12} r={3.6} fill="none" stroke={color} strokeOpacity={0.95} strokeWidth={1.5} />
-            <Polygon
-              points="12,9.6 12.8,11.2 14.4,12 12.8,12.8 12,14.4 11.2,12.8 9.6,12 11.2,11.2"
-              fill="none"
-              stroke={color}
-              strokeOpacity={0.95}
-              strokeWidth={1}
-            />
-            <Circle cx={12} cy={12} r={1} fill={color} />
-            <Circle cx={12} cy={12} r={14} fill="none" stroke={color} strokeOpacity={0.12} strokeWidth={0.6} />
-            {Array.from({ length: 8 }).map((_, i) => {
-              const angle = (i * 45) * Math.PI / 180;
-              const r = 13.4;
-              const size = 1.6;
-              const cx = 12 + Math.cos(angle) * r;
-              const cy = 12 + Math.sin(angle) * r;
-              return (
-                <Polygon
-                  key={`spark-${i}`}
-                  points={`${cx},${cy - size} ${cx + size},${cy} ${cx},${cy + size} ${cx - size},${cy}`}
-                  fill={color}
-                  opacity={0.85}
-                />
-              );
-            })}
-          </G>
-        </Svg>
-      ),
-      happy: (
-        <Svg width={30} height={30} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            {Array.from({ length: 8 }).map((_, i) => {
-              const angle = (i * 45) * Math.PI / 180;
-              const x1 = 12 + Math.cos(angle) * 6.8;
-              const y1 = 12 + Math.sin(angle) * 6.8;
-              const x2 = 12 + Math.cos(angle) * 11.2;
-              const y2 = 12 + Math.sin(angle) * 11.2;
-              return <Path key={i} d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke={color} strokeWidth={1.1} />;
-            })}
-            <Circle cx={12} cy={12} r={4.5} fill="none" stroke={color} strokeWidth={1.5} />
-            {Array.from({ length: 6 }).map((_, i) => {
-              const angle = (i * 60) * Math.PI / 180;
-              const r = 13;
-              const size = 1.2;
-              const cx = 12 + Math.cos(angle) * r;
-              const cy = 12 + Math.sin(angle) * r;
-              return (
-                <Circle key={`happy-dot-${i}`} cx={cx} cy={cy} r={size / 2} fill={color} opacity={0.7} />
-              );
-            })}
-          </G>
-        </Svg>
-      ),
-      energized: (
-        <Svg width={30} height={30} viewBox="0 0 24 24">
-          <G opacity={0.95}>
-            <Polygon points="12,2 18,8 18,16 12,22 6,16 6,8" fill="none" stroke={color} strokeWidth={1.6} />
-            <Polygon points="12,6 15,9 15,15 12,18 9,15 9,9" fill="none" stroke={color} strokeWidth={1.1} />
-            <Circle cx={12} cy={12} r={2.2} fill={color} />
-            {Array.from({ length: 8 }).map((_, i) => {
-              const angle = (i * 45) * Math.PI / 180;
-              const x1 = 12 + Math.cos(angle) * 5.5;
-              const y1 = 12 + Math.sin(angle) * 5.5;
-              const x2 = 12 + Math.cos(angle) * 11.5;
-              const y2 = 12 + Math.sin(angle) * 11.5;
-              return <Path key={`en-ray-${i}`} d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke={color} strokeOpacity={0.4} strokeWidth={1.1} />;
-            })}
-          </G>
-        </Svg>
-      ),
-    };
-    
-    return geometryIcons[emotion.id] || getEmotionIconById(emotion.id, color);
-  }, [getEmotionIconById]);
+    return getEmotionIcon(session.targetEmotions[0], "#fff", 32);
+  }, []);
 
   const filteredSessions = useMemo(() => {
     const availableSessions = sessions.filter((s) => s.id !== 'welcome-intro');
@@ -688,10 +159,8 @@ export default function HomeScreen() {
     return selectedEmotion ? availableSessions.filter((s) => s.targetEmotions.includes(selectedEmotion.id)) : availableSessions;
   }, [selectedEmotion, targetEmotionId]);
 
-  // Use useFocusEffect to handle navigation after the screen is focused
   useFocusEffect(
     useCallback(() => {
-      // Add a small delay to ensure the navigation system is ready
       const timer = setTimeout(() => {
         setIsInitialized(true);
         if (!hasSeenWelcome) {
@@ -788,7 +257,6 @@ export default function HomeScreen() {
     };
   }, [iconSpin, iconPulse, sessionIconAnims]);
 
-  // Don't render anything until initialized
   if (!isInitialized) {
     return (
       <LinearGradient colors={["#1a1a2e", "#16213e", "#0f3460"]} style={styles.container}>
@@ -844,7 +312,7 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.title}>How are you feeling?</Text>
             </View>
-            <Text style={styles.subtitle}>Pick the emotion that’s most present. We’ll cue sessions that match.</Text>
+            <Text style={styles.subtitle}>Pick the emotion that's most present. We'll cue sessions that match.</Text>
 
             <View style={styles.headerActionsRow}>
               <AnimatedPressable
@@ -929,9 +397,10 @@ export default function HomeScreen() {
                                 }}
                                 testID={`emotion.icon.${emotion.id}`}
                               >
-                                {getEmotionIconWithSmallerSize(
-                                  emotion,
-                                  isSelected ? palette.text : (emotion.gradient?.[0] ?? palette.text)
+                                {getEmotionIcon(
+                                  emotion.id,
+                                  isSelected ? palette.text : (emotion.gradient?.[0] ?? palette.text),
+                                  30
                                 )}
                               </Animated.View>
                             </View>
@@ -1032,8 +501,6 @@ export default function HomeScreen() {
             ))}
           </View>
 
-
-
           <View style={styles.chatSection}>
             <TouchableOpacity
               testID="openAIChat"
@@ -1054,128 +521,10 @@ export default function HomeScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      <Modal
+      <AIChatModal
         visible={showAIChatModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAIChatModal(false)}
-      >
-        <View style={styles.chatModalOverlay}>
-          <View style={styles.chatModalContent}>
-            <LinearGradient
-              colors={[palette.bg0, palette.bg1, "#071A24"]}
-              style={styles.chatGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <View style={styles.chatGlowTopRight} pointerEvents="none" />
-              <View style={styles.chatGlowBottomLeft} pointerEvents="none" />
-              <View style={styles.chatHeader}>
-                <View style={styles.chatHeaderInfo}>
-                  <View style={styles.aiAvatarContainer}>
-                    <Sparkles size={18} color={palette.bg0} strokeWidth={2.5} />
-                  </View>
-                  <View>
-                    <Text style={styles.chatHeaderTitle}>Wellness Companion</Text>
-                    <Text style={styles.chatHeaderSubtitle}>Reflect, release, and re-center</Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  testID="closeAIChat"
-                  onPress={() => setShowAIChatModal(false)}
-                  hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-                  style={styles.chatCloseButton}
-                >
-                  <X size={20} color={palette.text} strokeWidth={2.5} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView 
-                style={styles.chatMessagesContainer}
-                contentContainerStyle={styles.chatMessagesContent}
-                showsVerticalScrollIndicator={false}
-              >
-                {chatMessages.map((message, index) => (
-                  <View
-                    key={`chat-msg-${index}`}
-                    style={[
-                      styles.chatMessageBubble,
-                      message.role === 'user' ? styles.chatMessageUser : styles.chatMessageAI,
-                    ]}
-                  >
-                    {message.role === "ai" && (
-                      <View style={styles.aiMessageIcon}>
-                        <Sparkles size={14} color={palette.gold} strokeWidth={2.5} />
-                      </View>
-                    )}
-                    <View style={[
-                      styles.chatBubbleContent,
-                      message.role === "user" ? styles.chatBubbleUser : styles.chatBubbleAI,
-                    ]}>
-                      <Text style={[
-                        styles.chatMessageText,
-                        message.role === "user" && styles.chatMessageTextUser,
-                      ]}>
-                        {message.text}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-                {isAITyping && (
-                  <View style={[styles.chatMessageBubble, styles.chatMessageAI]}>
-                    <View style={styles.aiMessageIcon}>
-                      <Sparkles size={14} color={palette.gold} strokeWidth={2.5} />
-                    </View>
-                    <View style={[styles.chatBubbleContent, styles.chatBubbleAI]}>
-                      <View style={styles.typingIndicator}>
-                        <View style={styles.typingDot} />
-                        <View style={styles.typingDot} />
-                        <View style={styles.typingDot} />
-                      </View>
-                    </View>
-                  </View>
-                )}
-              </ScrollView>
-
-              <View style={styles.chatInputContainer}>
-                <TextInput
-                  testID="chatInput"
-                  style={styles.chatInput}
-                  value={userMessage}
-                  onChangeText={setUserMessage}
-                  placeholder="Share how you're feeling..."
-                  placeholderTextColor={"rgba(245,247,255,0.45)"}
-                  multiline
-                  maxLength={500}
-                  onSubmitEditing={handleSendMessage}
-                />
-                <TouchableOpacity
-                  testID="sendMessage"
-                  onPress={handleSendMessage}
-                  style={[
-                    styles.sendButton,
-                    !userMessage.trim() && styles.sendButtonDisabled,
-                  ]}
-                  disabled={!userMessage.trim() || isAITyping}
-                >
-                  <LinearGradient
-                    colors={
-                      userMessage.trim()
-                        ? [palette.teal, palette.blue]
-                        : ["rgba(255,255,255,0.14)", "rgba(255,255,255,0.10)"]
-                    }
-                    style={styles.sendButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Send size={18} color={userMessage.trim() ? palette.bg0 : "rgba(245,247,255,0.45)"} strokeWidth={2.5} />
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowAIChatModal(false)}
+      />
     </View>
   );
 }
@@ -1241,22 +590,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700" as const,
     letterSpacing: 0.2,
-  },
-  heroBadgeMuted: {
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-  },
-  heroBadgeMutedText: {
-    color: palette.textDim,
-    fontSize: 13,
-    fontWeight: "600" as const,
   },
   heroTitleRow: {
     marginTop: 14,
@@ -1451,38 +784,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  statsContainer: {
-    paddingHorizontal: 20,
-    marginTop: 30,
-  },
-  statsTitle: {
-    fontSize: 20,
-    fontWeight: "bold" as const,
-    color: "#fff",
-    marginBottom: 16,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: "bold" as const,
-    color: "#fff",
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.7)",
-  },
   loadingContainer: {
     flex: 1,
     alignItems: "center",
@@ -1493,30 +794,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600" as const,
   },
-  vibroacousticStatus: {
-    marginTop: 20,
-    backgroundColor: "rgba(0,255,150,0.1)",
-    borderRadius: 12,
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(0,255,150,0.3)",
-  },
-  vibroacousticIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#00ff96",
-    marginRight: 8,
-  },
-  vibroacousticText: {
-    color: "#00ff96",
-    fontSize: 12,
-    fontWeight: "600" as const,
-    textTransform: "capitalize" as const,
-  },
-
   chatSection: {
     paddingHorizontal: 20,
     marginTop: 16,
@@ -1552,183 +829,5 @@ const styles = StyleSheet.create({
   chatSubtitle: {
     color: "rgba(255,255,255,0.6)",
     fontSize: 13,
-  },
-
-  chatModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.9)",
-    justifyContent: "flex-end",
-  },
-  chatModalContent: {
-    height: "90%",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: "hidden",
-  },
-  chatGradient: {
-    flex: 1,
-    paddingTop: 20,
-  },
-  chatGlowTopRight: {
-    position: "absolute",
-    top: -120,
-    right: -140,
-    width: 320,
-    height: 320,
-    borderRadius: 260,
-    backgroundColor: "rgba(74,163,255,0.22)",
-    transform: [{ rotate: "18deg" }],
-  },
-  chatGlowBottomLeft: {
-    position: "absolute",
-    bottom: -180,
-    left: -160,
-    width: 360,
-    height: 360,
-    borderRadius: 320,
-    backgroundColor: "rgba(31,214,193,0.16)",
-    transform: [{ rotate: "-10deg" }],
-  },
-  chatCloseButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-  },
-  chatHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.08)",
-  },
-  chatHeaderInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  aiAvatarContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(147,51,234,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#9333ea",
-  },
-  chatHeaderTitle: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "700" as const,
-  },
-  chatHeaderSubtitle: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 12,
-    marginTop: 2,
-  },
-  chatMessagesContainer: {
-    flex: 1,
-  },
-  chatMessagesContent: {
-    padding: 20,
-    gap: 16,
-  },
-  chatMessageBubble: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  chatMessageAI: {
-    alignSelf: "flex-start",
-  },
-  chatMessageUser: {
-    alignSelf: "flex-end",
-    flexDirection: "row-reverse",
-  },
-  aiMessageIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(147,51,234,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 4,
-  },
-  chatBubbleContent: {
-    maxWidth: "75%",
-    borderRadius: 18,
-    padding: 14,
-  },
-  chatBubbleAI: {
-    backgroundColor: "rgba(147,51,234,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(147,51,234,0.2)",
-  },
-  chatBubbleUser: {
-    backgroundColor: "#14b8a6",
-  },
-  chatMessageText: {
-    color: "#fff",
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  chatMessageTextUser: {
-    color: "#0b1220",
-  },
-  typingIndicator: {
-    flexDirection: "row",
-    gap: 6,
-    paddingVertical: 4,
-  },
-  typingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#9333ea",
-    opacity: 0.6,
-  },
-  chatInputContainer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(0,0,0,0.3)",
-  },
-  chatInput: {
-    flex: 1,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: "#fff",
-    maxHeight: 100,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    overflow: "hidden",
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-  sendButtonGradient: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });
