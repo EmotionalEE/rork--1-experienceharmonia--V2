@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import createContextHook from "@nkzw/create-context-hook";
-import { Buffer } from "buffer";
+
 
 interface VibroacousticPattern {
   id: string;
@@ -206,7 +206,12 @@ export const [VibroacousticProvider, useVibroacoustic] = createContextHook<Vibro
       view.setInt16(44 + i * 2, intSample, true);
     }
 
-    const base64 = Buffer.from(buffer).toString('base64');
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i += 1) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
     return `data:audio/wav;base64,${base64}`;
   }, []);
 
