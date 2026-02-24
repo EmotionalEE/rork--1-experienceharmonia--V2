@@ -59,8 +59,9 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
     system: wellnessSystemPrompt,
   } as any);
 
-  const messages = agent?.messages ?? [];
-  const error = agent?.error;
+  const rawMessages = agent?.messages;
+  const messages: any[] = Array.isArray(rawMessages) ? rawMessages : [];
+  const error = agent?.error ?? null;
   const sendMessage = agent?.sendMessage;
   const setMessages = agent?.setMessages;
 
