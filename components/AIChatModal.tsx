@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Platform,
@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Send, Sparkles, X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
+import { useRorkAgent } from "@rork-ai/toolkit-sdk";
 
 const palette = {
   bg0: "#070A12",
@@ -28,64 +29,57 @@ interface AIChatModalProps {
   onClose: () => void;
 }
 
-function generateAIResponse(userMsg: string): string {
-  const lowercaseMsg = userMsg.toLowerCase();
-
-  if (lowercaseMsg.includes('anxious') || lowercaseMsg.includes('anxiety') || lowercaseMsg.includes('worried')) {
-    return "I hear that you're feeling anxious. That's completely valid. Have you noticed what triggers this feeling? Sometimes identifying patterns can help us address them. Would breathing exercises or grounding techniques help you right now?";
-  }
-  if (lowercaseMsg.includes('stressed') || lowercaseMsg.includes('stress') || lowercaseMsg.includes('overwhelmed')) {
-    return "Stress can be so overwhelming. Remember to be gentle with yourself. What's been weighing on your mind lately? Sometimes breaking things down into smaller pieces makes them more manageable.";
-  }
-  if (lowercaseMsg.includes('sad') || lowercaseMsg.includes('down') || lowercaseMsg.includes('depressed')) {
-    return "I'm sorry you're going through this. Sadness is a natural part of being human. Would you like to talk about what's bringing these feelings up? I'm here to listen without judgment.";
-  }
-  if (lowercaseMsg.includes('happy') || lowercaseMsg.includes('good') || lowercaseMsg.includes('great') || lowercaseMsg.includes('better')) {
-    return "That's wonderful to hear! What's been contributing to these positive feelings? Acknowledging and celebrating our joy is just as important as processing difficult emotions.";
-  }
-  if (lowercaseMsg.includes('angry') || lowercaseMsg.includes('frustrated') || lowercaseMsg.includes('mad')) {
-    return "Anger often shows up when something important to us is being challenged. What's underneath that anger for you? Sometimes it helps to explore what needs aren't being met.";
-  }
-  if (lowercaseMsg.includes('calm') || lowercaseMsg.includes('peaceful') || lowercaseMsg.includes('relaxed')) {
-    return "Finding moments of calm is so valuable. What practices or experiences help you tap into this peaceful state? Building on what works can deepen your sense of tranquility.";
-  }
-  if (lowercaseMsg.includes('tired') || lowercaseMsg.includes('exhausted') || lowercaseMsg.includes('drained')) {
-    return "Rest is essential for healing and growth. Are you getting enough quality sleep? Sometimes our bodies are telling us we need to slow down and recharge. What would genuine rest look like for you?";
-  }
-  if (lowercaseMsg.includes('session') || lowercaseMsg.includes('practice') || lowercaseMsg.includes('meditation')) {
-    return "It sounds like you're interested in your practice! Consistency is more important than perfection. How has your journey with the sessions been so far? What changes have you noticed?";
-  }
-  if (lowercaseMsg.length < 10) {
-    return "I'd love to hear more about that. Can you tell me what's going on? The more you share, the better I can support you.";
-  }
-  return "Thank you for sharing that with me. Your feelings are valid and important. How long have you been experiencing this? Sometimes understanding the timeline helps us see patterns and progress.";
-}
+const wellnessSystemPrompt =
+  "You are Harmonia's Wellness Companion. Respond with specific, varied reflections that depend on the user's exact words.\n" +
+  "Rules:\n" +
+  "- Never repeat the same sentence twice in a session.\n" +
+  "- Ask ONE gentle follow-up question at the end.\n" +
+  "- Mirror key phrases from the user before responding.\n" +
+  "- Keep responses under 120 words.\n" +
+  "- Do not provide medical advice or claim authority.\n";
 
 export default React.memo(function AIChatModal({ visible, onClose }: AIChatModalProps) {
-  const [chatMessages, setChatMessages] = useState<{ role: "user" | "ai"; text: string }[]>([
-    { role: "ai", text: "Hello! I'm here to support you on your journey. How are you feeling today?" },
-  ]);
-  const [userMessage, setUserMessage] = useState("");
-  const [isAITyping, setIsAITyping] = useState(false);
+  const [userMessage, setUserMessage] = useState<string>("");
+  const [isAITyping, setIsAITyping] = useState<boolean>(false);
 
-  const handleSendMessage = useCallback(() => {
+  const { messages, error, sendMessage, setMessages } = useRorkAgent({
+    tools: {},
+    system: wellnessSystemPrompt,
+  } as any);
+
+  const hasMessages = useMemo(() => messages.length > 0, [messages.length]);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (hasMessages) return;
+    setMessages([
+      {
+        id: "welcome",
+        role: "assistant",
+        content: "Hello! I'm here to support you on your journey. How are you feeling today?",
+      },
+    ] as any);
+  }, [hasMessages, setMessages, visible]);
+
+  const handleSendMessage = useCallback(async () => {
     const trimmedMessage = userMessage.trim();
-    if (!trimmedMessage) return;
+    if (!trimmedMessage || isAITyping) return;
 
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
-    setChatMessages((prev) => [...prev, { role: "user", text: trimmedMessage }]);
     setUserMessage("");
     setIsAITyping(true);
 
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(trimmedMessage);
-      setChatMessages((prev) => [...prev, { role: "ai", text: aiResponse }]);
+    try {
+      await sendMessage(trimmedMessage);
+    } catch (e) {
+      console.log("[AIChatModal] send error", e);
+    } finally {
       setIsAITyping(false);
-    }, 1200);
-  }, [userMessage]);
+    }
+  }, [isAITyping, sendMessage, userMessage]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -124,32 +118,61 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
               contentContainerStyle={styles.chatMessagesContent}
               showsVerticalScrollIndicator={false}
             >
-              {chatMessages.map((message, index) => (
-                <View
-                  key={`chat-msg-${index}`}
-                  style={[
-                    styles.chatMessageBubble,
-                    message.role === "user" ? styles.chatMessageUser : styles.chatMessageAI,
-                  ]}
-                >
-                  {message.role === "ai" && (
-                    <View style={styles.aiMessageIcon}>
-                      <Sparkles size={14} color={palette.gold} strokeWidth={2.5} />
-                    </View>
-                  )}
-                  <View style={[
-                    styles.chatBubbleContent,
-                    message.role === "user" ? styles.chatBubbleUser : styles.chatBubbleAI,
-                  ]}>
-                    <Text style={[
-                      styles.chatMessageText,
-                      message.role === "user" && styles.chatMessageTextUser,
+              {messages.map((message: any) => {
+                const role: string = message?.role ?? "assistant";
+                const parts: any[] = message?.parts ?? [];
+                const text =
+                  typeof message?.content === "string"
+                    ? message.content
+                    : Array.isArray(parts)
+                      ? parts
+                          .filter((p) => p?.type === "text")
+                          .map((p) => p?.text)
+                          .filter(Boolean)
+                          .join("\n")
+                      : "";
+
+                if (!text) return null;
+                const isUser = role === "user";
+
+                return (
+                  <View
+                    key={message.id}
+                    style={[
+                      styles.chatMessageBubble,
+                      isUser ? styles.chatMessageUser : styles.chatMessageAI,
+                    ]}
+                    testID={`aiChat.message.${message.id}`}
+                  >
+                    {!isUser && (
+                      <View style={styles.aiMessageIcon}>
+                        <Sparkles size={14} color={palette.gold} strokeWidth={2.5} />
+                      </View>
+                    )}
+                    <View style={[
+                      styles.chatBubbleContent,
+                      isUser ? styles.chatBubbleUser : styles.chatBubbleAI,
                     ]}>
-                      {message.text}
-                    </Text>
+                      <Text style={[
+                        styles.chatMessageText,
+                        isUser && styles.chatMessageTextUser,
+                      ]}>
+                        {text}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+              {error && (
+                <View style={[styles.chatMessageBubble, styles.chatMessageAI]}>
+                  <View style={styles.aiMessageIcon}>
+                    <Sparkles size={14} color={palette.gold} strokeWidth={2.5} />
+                  </View>
+                  <View style={[styles.chatBubbleContent, styles.chatBubbleAI]}>
+                    <Text style={styles.chatMessageText}>Sorry, I had trouble responding. Please try again.</Text>
                   </View>
                 </View>
-              ))}
+              )}
               {isAITyping && (
                 <View style={[styles.chatMessageBubble, styles.chatMessageAI]}>
                   <View style={styles.aiMessageIcon}>
