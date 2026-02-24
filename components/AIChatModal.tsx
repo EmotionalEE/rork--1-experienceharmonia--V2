@@ -59,8 +59,12 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
     system: wellnessSystemPrompt,
   } as any);
 
-  const rawMessages = agent?.messages;
-  const messages: any[] = Array.isArray(rawMessages) ? rawMessages : [];
+  const messages: any[] = useMemo(() => {
+    const raw = agent?.messages;
+    if (Array.isArray(raw)) return raw;
+    return [];
+  }, [agent?.messages]);
+
   const error = agent?.error ?? null;
   const sendMessage = agent?.sendMessage;
   const setMessages = agent?.setMessages;
@@ -70,13 +74,18 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
   useEffect(() => {
     if (!visible) return;
     if (hasMessages) return;
-    setMessages([
-      {
-        id: "welcome",
-        role: "assistant",
-        content: "Hello! I'm here to support you on your journey. How are you feeling today?",
-      },
-    ] as any);
+    if (typeof setMessages !== 'function') return;
+    try {
+      setMessages([
+        {
+          id: "welcome",
+          role: "assistant",
+          content: "Hello! I'm here to support you on your journey. How are you feeling today?",
+        },
+      ] as any);
+    } catch (e) {
+      console.log("[AIChatModal] setMessages error", e);
+    }
   }, [hasMessages, setMessages, visible]);
 
   const handleSendMessage = useCallback(async () => {
@@ -91,6 +100,7 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
     setIsAITyping(true);
 
     try {
+      if (typeof sendMessage !== 'function') return;
       await sendMessage(trimmedMessage);
     } catch (e) {
       console.log("[AIChatModal] send error", e);
@@ -136,7 +146,7 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
               contentContainerStyle={styles.chatMessagesContent}
               showsVerticalScrollIndicator={false}
             >
-              {messages.map((message: any) => {
+              {(messages ?? []).map((message: any) => {
                 const role: string = message?.role ?? "assistant";
                 const parts: any[] = message?.parts ?? [];
                 const text =
