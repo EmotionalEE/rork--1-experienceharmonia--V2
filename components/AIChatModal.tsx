@@ -54,10 +54,15 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
   const [userMessage, setUserMessage] = useState<string>("");
   const [isAITyping, setIsAITyping] = useState<boolean>(false);
 
-  const { messages, error, sendMessage, setMessages } = useRorkAgent({
+  const agent = useRorkAgent({
     tools: {},
     system: wellnessSystemPrompt,
   } as any);
+
+  const messages = agent?.messages ?? [];
+  const error = agent?.error;
+  const sendMessage = agent?.sendMessage;
+  const setMessages = agent?.setMessages;
 
   const hasMessages = useMemo(() => messages.length > 0, [messages.length]);
 
