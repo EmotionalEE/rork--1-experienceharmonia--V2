@@ -52,48 +52,47 @@ const wellnessSystemPrompt =
 
 
 
+function getMessageText(message: any): string {
+  if (!message) return "";
+  if (typeof message.content === "string" && message.content) return message.content;
+  const parts = Array.isArray(message.parts) ? message.parts : [];
+  return parts
+    .filter((p: any) => p?.type === "text")
+    .map((p: any) => p?.text ?? "")
+    .filter(Boolean)
+    .join("\n");
+}
+
 export default React.memo(function AIChatModal({ visible, onClose }: AIChatModalProps) {
   const [userMessage, setUserMessage] = useState<string>("");
   const [isAITyping, setIsAITyping] = useState<boolean>(false);
-  const [localMessages, setLocalMessages] = useState<any[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content: "Hello! I'm here to support you on your journey. How are you feeling today?",
-    },
-  ]);
 
-  const agent = useRorkAgent({
+  const { messages: agentMessages, error, sendMessage, setMessages } = useRorkAgent({
     tools: {},
     system: wellnessSystemPrompt,
   } as any);
 
-  const agentMessages = agent?.messages;
-  const agentError = agent?.error;
-  const agentSetMessages = agent?.setMessages;
-  const agentSendMessage = agent?.sendMessage;
+  const safeMessages: any[] = Array.isArray(agentMessages) ? agentMessages : [];
 
-  const messages: any[] = useMemo(() => {
-    if (Array.isArray(agentMessages) && agentMessages.length > 0) return agentMessages;
-    return localMessages;
-  }, [agentMessages, localMessages]);
-
-  const error = agentError ?? null;
+  const hasInitialized = React.useRef(false);
 
   useEffect(() => {
-    if (!visible) return;
-    if (typeof agentSetMessages === 'function') {
-      if (!Array.isArray(agentMessages) || agentMessages.length === 0) {
-        agentSetMessages([
-          {
-            id: "welcome",
-            role: "assistant",
-            content: "Hello! I'm here to support you on your journey. How are you feeling today?",
-          },
-        ] as any);
-      }
+    if (!visible) {
+      hasInitialized.current = false;
+      return;
     }
-  }, [visible, agentSetMessages, agentMessages]);
+    if (hasInitialized.current) return;
+    if (typeof setMessages === 'function') {
+      hasInitialized.current = true;
+      setMessages([
+        {
+          id: "welcome",
+          role: "assistant",
+          parts: [{ type: "text", text: "Hello! I'm here to support you on your journey. How are you feeling today?" }],
+        },
+      ] as any);
+    }
+  }, [visible, setMessages]);
 
   const handleSendMessage = useCallback(async () => {
     const trimmedMessage = userMessage.trim();
@@ -107,21 +106,13 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
     setIsAITyping(true);
 
     try {
-      if (typeof agentSendMessage === 'function') {
-        await agentSendMessage(trimmedMessage);
-      } else {
-        setLocalMessages(prev => [
-          ...prev,
-          { id: `user-${Date.now()}`, role: 'user', content: trimmedMessage },
-          { id: `ai-${Date.now()}`, role: 'assistant', content: "I'm having trouble connecting right now. Please try again in a moment." },
-        ]);
-      }
+      await sendMessage(trimmedMessage);
     } catch (e) {
       console.log("[AIChatModal] send error", e);
     } finally {
       setIsAITyping(false);
     }
-  }, [isAITyping, agentSendMessage, userMessage, localMessages]);
+  }, [isAITyping, sendMessage, userMessage]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -160,19 +151,9 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
               contentContainerStyle={styles.chatMessagesContent}
               showsVerticalScrollIndicator={false}
             >
-              {(Array.isArray(messages) ? messages : []).map((message: any) => {
+              {safeMessages.map((message: any) => {
                 const role: string = message?.role ?? "assistant";
-                const parts: any[] = message?.parts ?? [];
-                const text =
-                  typeof message?.content === "string"
-                    ? message.content
-                    : Array.isArray(parts)
-                      ? parts
-                          .filter((p) => p?.type === "text")
-                          .map((p) => p?.text)
-                          .filter(Boolean)
-                          .join("\n")
-                      : "";
+                const text = getMessageText(message);
 
                 if (!text) return null;
                 const isUser = role === "user";
