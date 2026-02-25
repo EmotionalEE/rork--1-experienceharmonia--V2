@@ -5,7 +5,9 @@
   "scripts": {
     "start": "bunx rork start -p rath3vw1f6cd7s2s1gltb --tunnel",
     "start-web": "bunx rork start -p rath3vw1f6cd7s2s1gltb --web --tunnel",
-    "start-web-dev": "DEBUG=expo* bunx rork start -p rath3vw1f6cd7s2s1gltb --web --tunnel"
+    "start-web-dev": "DEBUG=expo* bunx rork start -p rath3vw1f6cd7s2s1gltb --web --tunnel",
+    "typecheck": "tsc --noEmit",
+    "lint": "expo lint"
   },
   "dependencies": {
     "@ai-sdk/react": "^2.0.87",

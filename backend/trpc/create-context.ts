@@ -4,21 +4,30 @@ import superjson from "superjson";
 import { verifyToken } from "../lib/jwt";
 import { userStore } from "../lib/user-store";
 
-export const createContext = async (opts: FetchCreateContextFnOptions) => {
-  const authHeader = opts.req.headers.get('authorization');
-  let userId: string | null = null;
+const BEARER_PREFIX = "bearer ";
 
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    const payload = verifyToken(token);
-    if (payload) {
-      userId = payload.userId;
-    }
+function getBearerToken(authorizationHeader: string | null): string | null {
+  if (!authorizationHeader) {
+    return null;
   }
+
+  const normalizedHeader = authorizationHeader.trim();
+  if (!normalizedHeader.toLowerCase().startsWith(BEARER_PREFIX)) {
+    return null;
+  }
+
+  const token = normalizedHeader.slice(BEARER_PREFIX.length).trim();
+  return token.length > 0 ? token : null;
+}
+
+export const createContext = async (opts: FetchCreateContextFnOptions) => {
+  const authHeader = opts.req.headers.get("authorization");
+  const token = getBearerToken(authHeader);
+  const payload = token ? verifyToken(token) : null;
 
   return {
     req: opts.req,
-    userId,
+    userId: payload?.userId ?? null,
   };
 };
 
@@ -34,16 +43,16 @@ export const publicProcedure = t.procedure;
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!ctx.userId) {
     throw new TRPCError({
-      code: 'UNAUTHORIZED',
-      message: 'You must be logged in to access this resource',
+      code: "UNAUTHORIZED",
+      message: "You must be logged in to access this resource",
     });
   }
 
   const user = await userStore.findUserById(ctx.userId);
   if (!user) {
     throw new TRPCError({
-      code: 'UNAUTHORIZED',
-      message: 'User not found',
+      code: "UNAUTHORIZED",
+      message: "User not found",
     });
   }
 
