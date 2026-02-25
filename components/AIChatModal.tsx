@@ -50,18 +50,7 @@ const wellnessSystemPrompt =
   "- Match emotional intensity. Low energy → slower, quieter tone. High anxiety → grounding and specific. Sadness → presence without fixing.\n";
 
 
-function useAgentSafe() {
-  try {
-    const agent = useRorkAgent({
-      tools: {},
-      system: wellnessSystemPrompt,
-    } as any);
-    return agent;
-  } catch (e) {
-    console.log('[AIChatModal] useRorkAgent error', e);
-    return null;
-  }
-}
+
 
 export default React.memo(function AIChatModal({ visible, onClose }: AIChatModalProps) {
   const [userMessage, setUserMessage] = useState<string>("");
@@ -74,40 +63,37 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
     },
   ]);
 
-  const agent = useAgentSafe();
+  const agent = useRorkAgent({
+    tools: {},
+    system: wellnessSystemPrompt,
+  } as any);
+
+  const agentMessages = agent?.messages;
+  const agentError = agent?.error;
+  const agentSetMessages = agent?.setMessages;
+  const agentSendMessage = agent?.sendMessage;
 
   const messages: any[] = useMemo(() => {
-    try {
-      const raw = agent?.messages;
-      if (Array.isArray(raw) && raw.length > 0) return raw;
-    } catch (e) {
-      console.log('[AIChatModal] messages access error', e);
-    }
+    if (Array.isArray(agentMessages) && agentMessages.length > 0) return agentMessages;
     return localMessages;
-  }, [agent?.messages, localMessages]);
+  }, [agentMessages, localMessages]);
 
-  const error = agent?.error ?? null;
+  const error = agentError ?? null;
 
   useEffect(() => {
     if (!visible) return;
-    try {
-      const setMsgs = agent?.setMessages;
-      if (typeof setMsgs === 'function') {
-        const raw = agent?.messages;
-        if (!Array.isArray(raw) || raw.length === 0) {
-          setMsgs([
-            {
-              id: "welcome",
-              role: "assistant",
-              content: "Hello! I'm here to support you on your journey. How are you feeling today?",
-            },
-          ] as any);
-        }
+    if (typeof agentSetMessages === 'function') {
+      if (!Array.isArray(agentMessages) || agentMessages.length === 0) {
+        agentSetMessages([
+          {
+            id: "welcome",
+            role: "assistant",
+            content: "Hello! I'm here to support you on your journey. How are you feeling today?",
+          },
+        ] as any);
       }
-    } catch (e) {
-      console.log("[AIChatModal] setMessages error", e);
     }
-  }, [visible, agent]);
+  }, [visible, agentSetMessages, agentMessages]);
 
   const handleSendMessage = useCallback(async () => {
     const trimmedMessage = userMessage.trim();
@@ -121,9 +107,8 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
     setIsAITyping(true);
 
     try {
-      const sendFn = agent?.sendMessage;
-      if (typeof sendFn === 'function') {
-        await sendFn(trimmedMessage);
+      if (typeof agentSendMessage === 'function') {
+        await agentSendMessage(trimmedMessage);
       } else {
         setLocalMessages(prev => [
           ...prev,
@@ -136,7 +121,7 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
     } finally {
       setIsAITyping(false);
     }
-  }, [isAITyping, agent, userMessage, localMessages]);
+  }, [isAITyping, agentSendMessage, userMessage, localMessages]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
