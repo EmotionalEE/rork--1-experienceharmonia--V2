@@ -6,17 +6,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const trpc = createTRPCReact<AppRouter>();
 
+const AUTH_TOKEN_KEY = "auth_token";
+
 const getBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_RORK_API_BASE_URL) {
     return process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
   }
 
-  throw new Error(
-    "No base url found, please set EXPO_PUBLIC_RORK_API_BASE_URL"
-  );
-};
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
 
-const AUTH_TOKEN_KEY = "auth_token";
+  throw new Error("No base url found, please set EXPO_PUBLIC_RORK_API_BASE_URL");
+};
 
 export const createTRPCClient = () => {
   return trpc.createClient({
@@ -26,9 +28,7 @@ export const createTRPCClient = () => {
         transformer: superjson,
         async headers() {
           const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
-          return {
-            authorization: token ? `Bearer ${token}` : '',
-          };
+          return token ? { authorization: `Bearer ${token}` } : {};
         },
       }),
     ],

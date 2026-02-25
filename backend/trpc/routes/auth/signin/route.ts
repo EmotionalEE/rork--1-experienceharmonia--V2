@@ -1,36 +1,31 @@
 import { publicProcedure } from "../../../create-context";
-import { z } from "zod";
 import { userStore } from "../../../../lib/user-store";
 import { generateToken } from "../../../../lib/jwt";
 import { TRPCError } from "@trpc/server";
+import { signinInputSchema } from "../../../../lib/auth-validation";
 
 export const signinProcedure = publicProcedure
-  .input(
-    z.object({
-      email: z.string().email("Invalid email address"),
-      password: z.string().min(1, "Password is required"),
-    })
-  )
+  .input(signinInputSchema)
   .mutation(async ({ input }) => {
-    console.log('[Auth] Signin attempt:', input.email);
+    console.log("[Auth] Signin attempt:", input.email);
 
     const user = await userStore.findUserByEmail(input.email);
-    
+
     if (!user) {
-      console.log('[Auth] Signin failed: User not found');
+      console.log("[Auth] Signin failed: User not found");
       throw new TRPCError({
-        code: 'UNAUTHORIZED',
-        message: 'Invalid email or password',
+        code: "UNAUTHORIZED",
+        message: "Invalid email or password",
       });
     }
 
     const isValidPassword = await userStore.verifyPassword(user, input.password);
-    
+
     if (!isValidPassword) {
-      console.log('[Auth] Signin failed: Invalid password');
+      console.log("[Auth] Signin failed: Invalid password");
       throw new TRPCError({
-        code: 'UNAUTHORIZED',
-        message: 'Invalid email or password',
+        code: "UNAUTHORIZED",
+        message: "Invalid email or password",
       });
     }
 
@@ -39,7 +34,7 @@ export const signinProcedure = publicProcedure
       email: user.email,
     });
 
-    console.log('[Auth] Signin successful:', user.email);
+    console.log("[Auth] Signin successful:", user.email);
 
     return {
       success: true,
