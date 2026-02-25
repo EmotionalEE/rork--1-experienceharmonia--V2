@@ -7,7 +7,7 @@
         "./*"
       ]
     },
-    "baseUrl": "."
+    "baseUrl": null
   },
   "include": [
     "**/*.ts",
