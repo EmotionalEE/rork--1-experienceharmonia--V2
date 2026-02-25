@@ -148,7 +148,8 @@ export default function HomeScreen() {
     if (session.id === '741hz-detox') {
       return getDetoxSessionIcon();
     }
-    return getEmotionIcon(session.targetEmotions[0], "#fff", 32);
+    const primaryEmotion = session.targetEmotions?.[0];
+    return getEmotionIcon(primaryEmotion ?? "", "#fff", 32);
   }, []);
 
   const filteredSessions = useMemo(() => {
