@@ -54,14 +54,23 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
   const [userMessage, setUserMessage] = useState<string>("");
   const [isAITyping, setIsAITyping] = useState<boolean>(false);
 
-  const agent = useRorkAgent({
-    tools: {},
-    system: wellnessSystemPrompt,
-  } as any);
+  let agent: any = null;
+  try {
+    agent = useRorkAgent({
+      tools: {},
+      system: wellnessSystemPrompt,
+    } as any);
+  } catch (e) {
+    console.log('[AIChatModal] useRorkAgent error', e);
+  }
 
   const messages: any[] = useMemo(() => {
-    const raw = agent?.messages;
-    if (Array.isArray(raw)) return raw;
+    try {
+      const raw = agent?.messages;
+      if (Array.isArray(raw)) return raw;
+    } catch (e) {
+      console.log('[AIChatModal] messages read error', e);
+    }
     return [];
   }, [agent?.messages]);
 
@@ -146,7 +155,7 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
               contentContainerStyle={styles.chatMessagesContent}
               showsVerticalScrollIndicator={false}
             >
-              {(messages ?? []).map((message: any) => {
+              {(Array.isArray(messages) ? messages : []).map((message: any) => {
                 const role: string = message?.role ?? "assistant";
                 const parts: any[] = message?.parts ?? [];
                 const text =
