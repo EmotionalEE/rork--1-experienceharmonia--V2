@@ -24,14 +24,14 @@ import {
   SkipBack,
   SkipForward,
 } from "lucide-react-native";
-import Svg, { Circle, Polygon, Path, G } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 import { sessions } from "@/constants/sessions";
 import { useAudio } from "@/providers/AudioProvider";
 import { useUserProgress } from "@/providers/UserProgressProvider";
 import { useVibroacoustic } from "@/providers/VibroacousticProvider";
+import { SynchroGeometry, SacredGeometry } from "@/components/SessionGeometry";
+import { VibroacousticControls, BinauralControls, IsochronicControls } from "@/components/SessionAudioControls";
 import * as Haptics from "expo-haptics";
-
-
 
 export default function SessionScreen() {
   const router = useRouter();
@@ -206,7 +206,6 @@ export default function SessionScreen() {
 
   useEffect(() => {
     if (!session) return;
-
     if (isDynamicEnergyFlow) {
       setBinauralBaseFreq(220);
       setBinauralBeatFreq(18);
@@ -228,10 +227,7 @@ export default function SessionScreen() {
       scrollViewRef.current.scrollTo({ x: 0, y: initialViewportHeightRef.current, animated: false });
       hasAutoScrolledRef.current = true;
     });
-
-    return () => {
-      cancelAnimationFrame(frame);
-    };
+    return () => { cancelAnimationFrame(frame); };
   }, [sessionId]);
 
   const stopBreathLoop = useCallback(() => {
@@ -242,30 +238,16 @@ export default function SessionScreen() {
 
   useEffect(() => {
     if (!session) return;
-
-    if (!shouldAnimate) {
-      stopBreathLoop();
-      return;
-    }
+    if (!shouldAnimate) { stopBreathLoop(); return; }
 
     breathLoopRef.current?.stop();
     breathAnim.setValue(0);
 
     const breathAnimation = Animated.loop(
       Animated.sequence([
-        Animated.timing(breathAnim, {
-          toValue: 1,
-          duration: 3800,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: false,
-        }),
+        Animated.timing(breathAnim, { toValue: 1, duration: 3800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
         Animated.delay(350),
-        Animated.timing(breathAnim, {
-          toValue: 0,
-          duration: 3800,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: false,
-        }),
+        Animated.timing(breathAnim, { toValue: 0, duration: 3800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
         Animated.delay(350),
       ]),
     );
@@ -273,9 +255,7 @@ export default function SessionScreen() {
     breathLoopRef.current = breathAnimation;
     breathAnimation.start();
 
-    return () => {
-      breathLoopRef.current?.stop();
-    };
+    return () => { breathLoopRef.current?.stop(); };
   }, [session, shouldAnimate, breathAnim, stopBreathLoop]);
 
   useEffect(() => {
@@ -317,9 +297,7 @@ export default function SessionScreen() {
       visualStatusRef.current.mode !== mode ||
       visualStatusRef.current.tempoKey !== tempoKey;
 
-    if (!shouldRestart) {
-      return;
-    }
+    if (!shouldRestart) return;
 
     shouldAnimateSynchroRef.current = mode === 'synchro';
     stopSynchroLoops();
@@ -328,12 +306,6 @@ export default function SessionScreen() {
     if (mode === 'synchro') {
       console.log('[Session] Starting Synchrotrometry animations');
       const safeBeatMs = Math.max(250, Math.min(beatDurationMs, 6000));
-      const bgShiftPhaseDuration = safeBeatMs * 12;
-      const rotateDuration = safeBeatMs * 64;
-      const rotateRevDuration = safeBeatMs * 52;
-      const breatheInDuration = safeBeatMs * 4;
-      const breatheOutDuration = safeBeatMs * 4;
-      const centerPulseDuration = safeBeatMs * 2;
 
       bgShiftAnim.setValue(0);
       rotateAnim.setValue(0);
@@ -343,70 +315,30 @@ export default function SessionScreen() {
 
       startSynchroLoop(bgShiftLoop, () =>
         Animated.sequence([
-          Animated.timing(bgShiftAnim, {
-            toValue: 1,
-            duration: bgShiftPhaseDuration,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(bgShiftAnim, {
-            toValue: 0,
-            duration: bgShiftPhaseDuration,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
+          Animated.timing(bgShiftAnim, { toValue: 1, duration: safeBeatMs * 12, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+          Animated.timing(bgShiftAnim, { toValue: 0, duration: safeBeatMs * 12, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
         ]),
       );
 
       startSynchroLoop(rotateLoop, () =>
-        Animated.timing(rotateAnim, {
-          toValue: 1,
-          duration: rotateDuration,
-          easing: Easing.linear,
-          useNativeDriver: false,
-        }),
+        Animated.timing(rotateAnim, { toValue: 1, duration: safeBeatMs * 64, easing: Easing.linear, useNativeDriver: false }),
       );
 
       startSynchroLoop(rotateRevLoop, () =>
-        Animated.timing(rotateRevAnim, {
-          toValue: 1,
-          duration: rotateRevDuration,
-          easing: Easing.linear,
-          useNativeDriver: false,
-        }),
+        Animated.timing(rotateRevAnim, { toValue: 1, duration: safeBeatMs * 52, easing: Easing.linear, useNativeDriver: false }),
       );
 
       startSynchroLoop(breatheLoop, () =>
         Animated.sequence([
-          Animated.timing(breatheScaleAnim, {
-            toValue: 1.04,
-            duration: breatheInDuration,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(breatheScaleAnim, {
-            toValue: 0.97,
-            duration: breatheOutDuration,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
+          Animated.timing(breatheScaleAnim, { toValue: 1.04, duration: safeBeatMs * 4, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+          Animated.timing(breatheScaleAnim, { toValue: 0.97, duration: safeBeatMs * 4, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
         ]),
       );
 
       startSynchroLoop(centerPulseLoop, () =>
         Animated.sequence([
-          Animated.timing(centerPulseAnim, {
-            toValue: 16,
-            duration: centerPulseDuration,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(centerPulseAnim, {
-            toValue: 10,
-            duration: centerPulseDuration,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
+          Animated.timing(centerPulseAnim, { toValue: 16, duration: safeBeatMs * 2, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+          Animated.timing(centerPulseAnim, { toValue: 10, duration: safeBeatMs * 2, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
         ]),
       );
     } else {
@@ -422,93 +354,34 @@ export default function SessionScreen() {
       const baseGeometryDuration = isDissolutionOfAnxiousness ? 6000 : 8000;
       const baseMandalaDuration = isDissolutionOfAnxiousness ? 10000 : 12000;
 
-      pulseLoop.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.2,
-            duration: basePulseDuration * tempoMultiplier,
-            useNativeDriver: false,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: basePulseDuration * tempoMultiplier,
-            useNativeDriver: false,
-          }),
-        ])
-      );
+      pulseLoop.current = Animated.loop(Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.2, duration: basePulseDuration * tempoMultiplier, useNativeDriver: false }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: basePulseDuration * tempoMultiplier, useNativeDriver: false }),
+      ]));
       pulseLoop.current.start();
 
-      waveLoop.current = Animated.loop(
-        Animated.timing(waveAnim, {
-          toValue: 1,
-          duration: baseWaveDuration * tempoMultiplier,
-          useNativeDriver: false,
-        })
-      );
+      waveLoop.current = Animated.loop(Animated.timing(waveAnim, { toValue: 1, duration: baseWaveDuration * tempoMultiplier, useNativeDriver: false }));
       waveLoop.current.start();
 
-      geometryLoop.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(geometryAnim, {
-            toValue: 1,
-            duration: baseGeometryDuration * tempoMultiplier,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: false,
-          }),
-          Animated.timing(geometryAnim, {
-            toValue: 0,
-            duration: baseGeometryDuration * tempoMultiplier,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: false,
-          }),
-        ])
-      );
+      geometryLoop.current = Animated.loop(Animated.sequence([
+        Animated.timing(geometryAnim, { toValue: 1, duration: baseGeometryDuration * tempoMultiplier, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(geometryAnim, { toValue: 0, duration: baseGeometryDuration * tempoMultiplier, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      ]));
       geometryLoop.current.start();
 
-      mandalaLoop.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(mandalaAnim, {
-            toValue: 1,
-            duration: baseMandalaDuration * tempoMultiplier,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: false,
-          }),
-          Animated.timing(mandalaAnim, {
-            toValue: 0,
-            duration: baseMandalaDuration * tempoMultiplier,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: false,
-          }),
-        ])
-      );
+      mandalaLoop.current = Animated.loop(Animated.sequence([
+        Animated.timing(mandalaAnim, { toValue: 1, duration: baseMandalaDuration * tempoMultiplier, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(mandalaAnim, { toValue: 0, duration: baseMandalaDuration * tempoMultiplier, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      ]));
       mandalaLoop.current.start();
     }
 
-    visualStatusRef.current = {
-      active: true,
-      sessionId: session.id,
-      mode,
-      tempoKey,
-    };
+    visualStatusRef.current = { active: true, sessionId: session.id, mode, tempoKey };
   }, [
-    session,
-    shouldAnimate,
-    isSynchroSession,
-    isDissolutionOfAnxiousness,
-    beatDurationMs,
-    audioPlaybackRate,
-    startSynchroLoop,
-    stopSynchroLoops,
-    stopGeometryLoops,
-    pulseAnim,
-    waveAnim,
-    geometryAnim,
-    mandalaAnim,
-    bgShiftAnim,
-    rotateAnim,
-    rotateRevAnim,
-    breatheScaleAnim,
-    centerPulseAnim,
+    session, shouldAnimate, isSynchroSession, isDissolutionOfAnxiousness,
+    beatDurationMs, audioPlaybackRate, startSynchroLoop, stopSynchroLoops, stopGeometryLoops,
+    pulseAnim, waveAnim, geometryAnim, mandalaAnim,
+    bgShiftAnim, rotateAnim, rotateRevAnim, breatheScaleAnim, centerPulseAnim,
   ]);
 
   const handleComplete = useCallback(async () => {
@@ -531,26 +404,13 @@ export default function SessionScreen() {
       }
     }
 
-    try {
-      await stopSound();
-    } catch (error) {
-      console.error('[Session] Error stopping sound', error);
-    }
-
-    try {
-      await stopVibroacousticSession();
-    } catch (error) {
-      console.error('[Session] Error stopping vibroacoustic session', error);
-    }
+    try { await stopSound(); } catch (error) { console.error('[Session] Error stopping sound', error); }
+    try { await stopVibroacousticSession(); } catch (error) { console.error('[Session] Error stopping vibroacoustic session', error); }
 
     if (session) {
       router.replace({
         pathname: '/end-reflection' as any,
-        params: {
-          sessionId: session.id,
-          sessionName: session.title,
-          completedAt: completionTimestamp,
-        },
+        params: { sessionId: session.id, sessionName: session.title, completedAt: completionTimestamp },
       });
     } else {
       router.replace('/');
@@ -577,20 +437,15 @@ export default function SessionScreen() {
     if (!isPaused) {
       interval = setInterval(tick, 500);
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    return () => { if (interval) clearInterval(interval); };
   }, [isPaused, session, handleComplete, getCurrentPosition, isScrubbing, trackDurationSec]);
 
   useEffect(() => {
     if (!session) return;
     const url = sessionAudioUrl ?? session.audioUrl;
     if (!url) return;
-
     console.log('[Session] Preloading audio', { sessionId: session.id, url });
-    preloadSound(url).catch((e: any) => {
-      console.log('[Session] preload error', e);
-    });
+    preloadSound(url).catch((e: any) => { console.log('[Session] preload error', e); });
   }, [preloadSound, session, sessionAudioUrl]);
 
   useEffect(() => {
@@ -615,7 +470,6 @@ export default function SessionScreen() {
     }
 
     if (!session) return;
-
     const url = sessionAudioUrl ?? session.audioUrl;
     if (!url) return;
 
@@ -623,17 +477,9 @@ export default function SessionScreen() {
       setIsStartingPlayback(true);
       setIsAnimating(true);
       setIsPaused(false);
-
       await playSound(url);
     } catch (e: any) {
       console.error('[Session] play error:', e);
-      console.error('[Session] error details:', JSON.stringify({
-        message: e?.message,
-        name: e?.name,
-        code: e?.code,
-        domain: e?.domain,
-        url,
-      }));
       setIsAnimating(false);
       setIsPaused(true);
       const errorMsg = e?.message || 'Could not start playback';
@@ -664,19 +510,15 @@ export default function SessionScreen() {
       } catch {}
     };
     interval = setInterval(updater, 1000);
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    return () => { if (interval) clearInterval(interval); };
   }, [getDuration, getPlaybackRate]);
 
   const handleSeek = useCallback(async (seconds: number) => {
     if (!isPlaying && isPaused) return;
-    
     try {
       const currentPosition = await getCurrentPosition();
       const newPosition = Math.max(0, currentPosition + (seconds * 1000));
       await seekTo(newPosition);
-      
       if (Platform.OS !== "web") {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
@@ -713,75 +555,52 @@ export default function SessionScreen() {
 
   const handleClose = useCallback(() => {
     if (Platform.OS === 'web') {
-      // RN Alert on web doesn't support multiple buttons; use confirm
       const confirmed = typeof window !== 'undefined' && window.confirm('Are you sure you want to end this session?');
       if (confirmed) {
         void (async () => {
           try {
-            console.log('[Session] Closing from web confirm');
             await stopSound();
             await stopVibroacousticSession();
           } catch (e) {
             console.log('[Session] Close error', e);
           } finally {
-            if (Platform.OS !== "web") {
-              router.back();
-            } else {
-              router.replace('/');
-            }
+            router.replace('/');
           }
         })();
       }
       return;
     }
 
-    Alert.alert(
-      'End Session',
-      'Are you sure you want to end this session?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'End Session',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('[Session] Closing from native alert');
-              await stopSound();
-              await stopVibroacousticSession();
-            } catch (e) {
-              console.log('[Session] stop session error', e);
-            } finally {
-              if (Platform.OS !== "web") {
-                router.back();
-              } else {
-                router.replace('/');
-              }
-            }
-          },
+    Alert.alert('End Session', 'Are you sure you want to end this session?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'End Session',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await stopSound();
+            await stopVibroacousticSession();
+          } catch (e) {
+            console.log('[Session] stop session error', e);
+          } finally {
+            router.back();
+          }
         },
-      ]
-    );
+      },
+    ]);
   }, [stopSound, stopVibroacousticSession, router]);
-
-
 
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }, []);
-
-
 
   const maxSeconds = useMemo(() => effectiveDurationSec, [effectiveDurationSec]);
   const displaySeconds = useMemo(() => isScrubbing ? scrubSeconds : timeElapsed, [isScrubbing, scrubSeconds, timeElapsed]);
   const displayProgress = useMemo(() => (maxSeconds > 0 ? (displaySeconds / maxSeconds) * 100 : 0), [displaySeconds, maxSeconds]);
   const sliderThumbLeft = useMemo(() => {
-    if (!sliderWidth || maxSeconds <= 0) {
-      return 0;
-    }
+    if (!sliderWidth || maxSeconds <= 0) return 0;
     const usableWidth = Math.max(0, sliderWidth - 18);
     const ratio = Math.min(Math.max(displaySeconds / maxSeconds, 0), 1);
     return ratio * usableWidth;
@@ -808,8 +627,6 @@ export default function SessionScreen() {
         lastHapticTickBucketRef.current = bucket;
         if (Platform.OS !== 'web') {
           Haptics.selectionAsync().catch(() => {});
-        } else {
-          console.log('[Seek] tick at', bucket * 5, 's');
         }
       }
     },
@@ -832,19 +649,15 @@ export default function SessionScreen() {
         lastHapticTickBucketRef.current = bucket;
         if (Platform.OS !== 'web') {
           Haptics.selectionAsync().catch(() => {});
-        } else {
-          console.log('[Seek] tick at', bucket * 5, 's');
         }
       }
     },
     onPanResponderRelease: () => {
       setIsScrubbing(false);
-
       if (seekCommitTimerRef.current) {
         clearTimeout(seekCommitTimerRef.current);
         seekCommitTimerRef.current = null;
       }
-
       const snapped = Math.round((scrubSeconds ?? 0) / 5) * 5;
       const bounded = clamp(snapped, 0, maxSeconds);
       setScrubSeconds(bounded);
@@ -874,6 +687,42 @@ export default function SessionScreen() {
     return gradientColors[gradientColors.length - 1];
   }, [session]);
 
+  const handleVibroacousticToggle = useCallback(async () => {
+    if (isVibroacousticActive) {
+      await stopVibroacousticSession();
+    } else {
+      await startVibroacousticSession(selectedVibroacousticMode);
+      const frequency = parseInt(session?.frequency ?? '0');
+      if (frequency < 100) {
+        await generateBinauralBeat(200, frequency);
+      } else {
+        await playSolfeggio(frequency);
+      }
+    }
+  }, [isVibroacousticActive, stopVibroacousticSession, startVibroacousticSession, selectedVibroacousticMode, session, generateBinauralBeat, playSolfeggio]);
+
+  const handleBinauralToggle = useCallback(async () => {
+    if (isBinauralActive) {
+      await stopVibroacousticSession();
+      setIsBinauralActive(false);
+    } else {
+      const baseFreq = isMobileBinauralLocked ? 220 : binauralBaseFreq;
+      const beatFreq = isMobileBinauralLocked ? 18 : binauralBeatFreq;
+      await generateBinauralBeat(baseFreq, beatFreq);
+      setIsBinauralActive(true);
+    }
+  }, [isBinauralActive, stopVibroacousticSession, isMobileBinauralLocked, binauralBaseFreq, binauralBeatFreq, generateBinauralBeat]);
+
+  const handleIsochronicToggle = useCallback(async () => {
+    if (isIsochronicActive) {
+      await stopVibroacousticSession();
+      setIsIsochronicActive(false);
+    } else {
+      await playIsochronicTone(isochronicFreq, 'square');
+      setIsIsochronicActive(true);
+    }
+  }, [isIsochronicActive, stopVibroacousticSession, isochronicFreq, playIsochronicTone]);
+
   if (!session) {
     return (
       <View style={styles.container}>
@@ -889,19 +738,17 @@ export default function SessionScreen() {
   return (
     <LinearGradient colors={session.gradient as unknown as readonly [string, string, ...string[]]} style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <TouchableOpacity 
-          onPress={handleClose} 
-          style={styles.exitButton} 
-          accessibilityRole="button" 
-          accessibilityLabel="Exit session" 
+        <TouchableOpacity
+          onPress={handleClose}
+          style={styles.exitButton}
+          accessibilityRole="button"
+          accessibilityLabel="Exit session"
           testID="close-session-button"
           activeOpacity={0.7}
         >
-          <Animated.View style={[styles.exitGeometry, { 
+          <Animated.View style={[styles.exitGeometry, {
             opacity: breathAnim.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0.9] }),
-            transform: [{
-              scale: breathAnim.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.04] })
-            }]
+            transform: [{ scale: breathAnim.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.04] }) }]
           }]}>
             <Svg width={64} height={64} viewBox="0 0 64 64" style={styles.exitSvg}>
               <Circle cx={32} cy={32} r={30} fill="rgba(0,0,0,0.1)" />
@@ -915,281 +762,22 @@ export default function SessionScreen() {
           </Animated.View>
         </TouchableOpacity>
 
-        {/* Animated sacred geometry background, independent from scroll */}
         <View pointerEvents="none" style={styles.backgroundLayer} testID="background-geometry">
           {session.id === 'lifting-from-sadness' ? (
-            <Animated.View
-              style={[
-                styles.synchroContainer,
-                {
-                  width: synchroSize,
-                  height: synchroSize,
-                  transform: [{ scale: breatheScaleAnim }],
-                },
-              ]}
-            >
-              <Animated.View
-                style={[
-                  styles.synchroRotating, { width: synchroSize, height: synchroSize },
-                  {
-                    transform: [
-                      {
-                        rotate: rotateAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0deg', '360deg'],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <Svg width={synchroSize} height={synchroSize} viewBox="0 0 300 300">
-                  <G opacity={0.8}>
-                    {Array.from({ length: 7 }).map((_, i) => {
-                      const r = 40 + i * 18;
-                      const w = 1.5 + i * 0.3;
-                      const dash = i % 3 === 0 ? '10,6' : undefined;
-                      return (
-                        <Circle
-                          key={i}
-                          cx={150}
-                          cy={150}
-                          r={r}
-                          fill="none"
-                          stroke="white"
-                          strokeOpacity={0.8}
-                          strokeWidth={w}
-                          strokeDasharray={dash}
-                        />
-                      );
-                    })}
-                  </G>
-                </Svg>
-              </Animated.View>
-
-              <View style={[styles.synchroFlower, { width: synchroSize, height: synchroSize }]}>
-                <Svg width={synchroSize} height={synchroSize} viewBox="0 0 300 300">
-                  {Array.from({ length: 12 }).map((_, i) => {
-                    const angle = (i * Math.PI) / 6;
-                    const cx = 150 + 60 * Math.cos(angle);
-                    const cy = 150 + 60 * Math.sin(angle);
-                    return (
-                      <Circle
-                        key={i}
-                        cx={cx}
-                        cy={cy}
-                        r={60}
-                        fill="none"
-                        stroke="white"
-                        strokeOpacity={0.25}
-                        strokeWidth={1.2}
-                      />
-                    );
-                  })}
-                </Svg>
-              </View>
-
-              <Animated.View
-                style={[
-                  styles.synchroYantra, { width: synchroSize, height: synchroSize },
-                  {
-                    transform: [
-                      {
-                        rotate: rotateRevAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0deg', '-360deg'],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <Svg width={synchroSize} height={synchroSize} viewBox="0 0 300 300">
-                  <Polygon
-                    points="150,110 185,180 115,180"
-                    fill="none"
-                    stroke="#FFF7E6"
-                    strokeWidth={2}
-                    opacity={0.9}
-                  />
-                  <Polygon
-                    points="150,190 185,120 115,120"
-                    fill="none"
-                    stroke="#FFF7E6"
-                    strokeWidth={2}
-                    opacity={0.75}
-                  />
-                </Svg>
-              </Animated.View>
-
-              <View style={[styles.synchroCenter, { width: synchroSize, height: synchroSize }]}>
-                <Svg width={synchroSize} height={synchroSize} viewBox="0 0 300 300">
-                  <Circle cx={150} cy={150} r={12} fill="#FFF7E6" />
-                </Svg>
-              </View>
-            </Animated.View>
+            <SynchroGeometry
+              synchroSize={synchroSize}
+              breatheScaleAnim={breatheScaleAnim}
+              rotateAnim={rotateAnim}
+              rotateRevAnim={rotateRevAnim}
+            />
           ) : (
-            <>
-              <Animated.View
-                style={[
-                  styles.bgGeometry,
-                  {
-                    opacity: geometryBreathOpacity,
-                    transform: [
-                      { scale: geometryBreathScale },
-                      {
-                        rotate: geometryAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0deg', '360deg'],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <Svg width={520} height={520} style={styles.bgSvg}>
-                  <G opacity={0.42}>
-                    <Circle cx={260} cy={260} r={80} fill="none" stroke="#fff" strokeOpacity={0.85} strokeWidth={2.0} />
-                    <Circle cx={260} cy={200} r={80} fill="none" stroke="#fff" strokeOpacity={0.82} strokeWidth={1.4} />
-                    <Circle cx={260} cy={320} r={80} fill="none" stroke="#fff" strokeOpacity={0.82} strokeWidth={1.4} />
-                    <Circle cx={200} cy={230} r={80} fill="none" stroke="#fff" strokeOpacity={0.82} strokeWidth={1.4} />
-                    <Circle cx={320} cy={230} r={80} fill="none" stroke="#fff" strokeOpacity={0.82} strokeWidth={1.4} />
-                    <Circle cx={200} cy={290} r={80} fill="none" stroke="#fff" strokeOpacity={0.82} strokeWidth={1.4} />
-                    <Circle cx={320} cy={290} r={80} fill="none" stroke="#fff" strokeOpacity={0.82} strokeWidth={1.4} />
-                    <G opacity={0.72}>
-                      <Polygon
-                        points="260,140 340,200 340,320 260,380 180,320 180,200"
-                        fill="none"
-                        stroke="#fff"
-                        strokeOpacity={0.8}
-                        strokeWidth={1.2}
-                      />
-                      <Polygon
-                        points="260,180 310,210 310,310 260,340 210,310 210,210"
-                        fill="none"
-                        stroke="#fff"
-                        strokeOpacity={0.8}
-                        strokeWidth={1.2}
-                      />
-                    </G>
-                  </G>
-                </Svg>
-              </Animated.View>
-
-              <Animated.View
-                style={[
-                  styles.bgGeometryGlow,
-                  {
-                    opacity: geometryGlowOpacity,
-                    transform: [
-                      { scale: Animated.multiply(1.07, geometryBreathScale) as any },
-                      {
-                        rotate: geometryAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0deg', '360deg'],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <Svg width={520} height={520} style={styles.bgSvg}>
-                  <G opacity={0.72}>
-                    <Circle cx={260} cy={260} r={80} fill="none" stroke="#fff" strokeOpacity={0.78} strokeWidth={2.6} />
-                    <Circle cx={260} cy={200} r={80} fill="none" stroke="#fff" strokeOpacity={0.7} strokeWidth={2.6} />
-                    <Circle cx={260} cy={320} r={80} fill="none" stroke="#fff" strokeOpacity={0.7} strokeWidth={2.6} />
-                    <Circle cx={200} cy={230} r={80} fill="none" stroke="#fff" strokeOpacity={0.7} strokeWidth={2.6} />
-                    <Circle cx={320} cy={230} r={80} fill="none" stroke="#fff" strokeOpacity={0.7} strokeWidth={2.6} />
-                    <Circle cx={200} cy={290} r={80} fill="none" stroke="#fff" strokeOpacity={0.7} strokeWidth={2.6} />
-                    <Circle cx={320} cy={290} r={80} fill="none" stroke="#fff" strokeOpacity={0.7} strokeWidth={2.6} />
-                  </G>
-                </Svg>
-              </Animated.View>
-
-              <Animated.View
-                style={[
-                  styles.bgMandala,
-                  {
-                    opacity: geometryBreathOpacity,
-                    transform: [
-                      { scale: geometryBreathScale },
-                      {
-                        rotate: mandalaAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0deg', '-360deg'],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <Svg width={460} height={460} style={styles.bgSvg}>
-                  <G opacity={0.26}>
-                    {Array.from({ length: 16 }).map((_, i) => {
-                      const angle = (i * 22.5) * Math.PI / 180;
-                      const x1 = 230 + Math.cos(angle) * 150;
-                      const y1 = 230 + Math.sin(angle) * 150;
-                      const x2 = 230 + Math.cos(angle) * 180;
-                      const y2 = 230 + Math.sin(angle) * 180;
-                      return (
-                        <Path
-                          key={i}
-                          d={`M 230 230 L ${x1} ${y1} L ${x2} ${y2} Z`}
-                          fill="none"
-                          stroke="#fff"
-                          strokeOpacity={0.78}
-                          strokeWidth={1.6}
-                        />
-                      );
-                    })}
-                    <Circle cx={230} cy={230} r={140} fill="none" stroke="#fff" strokeOpacity={0.72} strokeWidth={1.8} />
-                    <Circle cx={230} cy={230} r={70} fill="none" stroke="#fff" strokeOpacity={0.72} strokeWidth={1.8} />
-                  </G>
-                </Svg>
-              </Animated.View>
-
-              <Animated.View
-                style={[
-                  styles.bgMandalaGlow,
-                  {
-                    opacity: Animated.multiply(1.18, geometryGlowOpacity) as any,
-                    transform: [
-                      { scale: Animated.multiply(1.07, geometryBreathScale) as any },
-                      {
-                        rotate: mandalaAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0deg', '-360deg'],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <Svg width={460} height={460} style={styles.bgSvg}>
-                  <G opacity={0.62}>
-                    {Array.from({ length: 16 }).map((_, i) => {
-                      const angle = (i * 22.5) * Math.PI / 180;
-                      const x1 = 230 + Math.cos(angle) * 150;
-                      const y1 = 230 + Math.sin(angle) * 150;
-                      const x2 = 230 + Math.cos(angle) * 180;
-                      const y2 = 230 + Math.sin(angle) * 180;
-                      return (
-                        <Path
-                          key={i}
-                          d={`M 230 230 L ${x1} ${y1} L ${x2} ${y2} Z`}
-                          fill="none"
-                          stroke="#fff"
-                          strokeOpacity={0.7}
-                          strokeWidth={2.4}
-                        />
-                      );
-                    })}
-                    <Circle cx={230} cy={230} r={140} fill="none" stroke="#fff" strokeOpacity={0.58} strokeWidth={2.6} />
-                    <Circle cx={230} cy={230} r={70} fill="none" stroke="#fff" strokeOpacity={0.58} strokeWidth={2.6} />
-                  </G>
-                </Svg>
-              </Animated.View>
-            </>
+            <SacredGeometry
+              geometryBreathScale={geometryBreathScale}
+              geometryBreathOpacity={geometryBreathOpacity}
+              geometryGlowOpacity={geometryGlowOpacity}
+              geometryAnim={geometryAnim}
+              mandalaAnim={mandalaAnim}
+            />
           )}
         </View>
 
@@ -1199,422 +787,129 @@ export default function SessionScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-        <View style={{ height: initialViewportHeightRef.current }} />
-        <View style={styles.sheet} testID="session-info-sheet">
-          <View style={styles.sheetHandle} testID="session-sheet-handle" />
-          <View style={styles.sheetContent}>
-          <Text style={styles.sessionTitle}>{session.title}</Text>
-          <Text style={styles.frequency}>{session.frequency}Hz</Text>
-          <Text style={styles.description}>{session.description}</Text>
+          <View style={{ height: initialViewportHeightRef.current }} />
+          <View style={styles.sheet} testID="session-info-sheet">
+            <View style={styles.sheetHandle} testID="session-sheet-handle" />
+            <View style={styles.sheetContent}>
+              <Text style={styles.sessionTitle}>{session.title}</Text>
+              <Text style={styles.frequency}>{session.frequency}Hz</Text>
+              <Text style={styles.description}>{session.description}</Text>
 
-          <View style={styles.progressContainer} testID="session-progress">
-            <View
-              style={styles.progressBar}
-              onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
-              {...panResponder.panHandlers}
-              testID="seek-slider"
-            >
-              <View style={{ position: 'absolute', top: 17, left: 0, height: 6, width: '100%', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 3 }} />
-              <View style={[styles.progressFill, { width: `${displayProgress}%` }]} />
-              <View
-                style={[styles.thumb, { left: sliderThumbLeft }]}
-              />
-            </View>
-            <View style={styles.timeContainer}>
-              <Text style={styles.timeText}>{formatTime(displaySeconds)}</Text>
-              <Text style={styles.timeText}>
-                {formatTime(maxSeconds)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.controls} testID="session-controls">
-            <View style={styles.seekControls}>
-              <TouchableOpacity
-                onPress={() => handleSeek(-10)}
-                style={styles.seekButton}
-                activeOpacity={0.8}
-                disabled={isPaused}
-                testID="seek-back-button"
-              >
-                <SkipBack size={24} color={!isPaused ? "#fff" : "rgba(255,255,255,0.4)"} />
-                <Text style={[styles.seekText, isPaused && styles.seekTextDisabled]}>10s</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                onPress={handlePlayPause}
-                style={styles.playButton}
-                activeOpacity={0.8}
-                testID="play-pause-button"
-                disabled={isStartingPlayback}
-              >
-                <LinearGradient
-                  colors={["rgba(255,255,255,0.3)", "rgba(255,255,255,0.1)"]}
-                  style={styles.playButtonGradient}
-                >
-                  {isPlaying ? (
-                    <Pause size={40} color="#fff" />
-                  ) : (
-                    <Play size={40} color="#fff" style={{ marginLeft: 4 }} />
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                onPress={() => handleSeek(10)}
-                style={styles.seekButton}
-                activeOpacity={0.8}
-                disabled={isPaused}
-                testID="seek-forward-button"
-              >
-                <SkipForward size={24} color={!isPaused ? "#fff" : "rgba(255,255,255,0.4)"} />
-                <Text style={[styles.seekText, isPaused && styles.seekTextDisabled]}>10s</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          {showVibroacousticControls && (
-            <View style={styles.audioControlsPanel}>
-              <Text style={styles.controlsTitle}>Vibroacoustic Settings</Text>
-              
-              <View style={styles.controlGroup}>
-                <Text style={styles.controlLabel}>Mode</Text>
-                <View style={styles.modeSelector}>
-                  {['meditation', 'healing', 'energizing', 'relaxation', 'focus'].map((mode) => (
-                    <TouchableOpacity
-                      key={mode}
-                      onPress={() => setSelectedVibroacousticMode(mode)}
-                      style={[
-                        styles.modeButton,
-                        selectedVibroacousticMode === mode && styles.modeButtonActive
-                      ]}
-                    >
-                      <Text style={[
-                        styles.modeButtonText,
-                        selectedVibroacousticMode === mode && styles.modeButtonTextActive
-                      ]}>
-                        {mode}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              
-              <View style={styles.controlGroup}>
-                <Text style={styles.controlLabel}>Intensity: {Math.round(intensity * 100)}%</Text>
-                <View style={styles.slider}>
-                  <TouchableOpacity
-                    onPress={() => setVibroacousticIntensity(Math.max(0, intensity - 0.1))}
-                    style={styles.sliderButton}
-                  >
-                    <Text style={styles.sliderButtonText}>-</Text>
-                  </TouchableOpacity>
-                  <View style={styles.sliderTrack}>
-                    <View style={[styles.sliderFill, { width: `${intensity * 100}%` }]} />
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setVibroacousticIntensity(Math.min(1, intensity + 0.1))}
-                    style={styles.sliderButton}
-                  >
-                    <Text style={styles.sliderButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.controlGroup}>
-                <Text style={styles.controlLabel}>Haptic Sensitivity: {Math.round(hapticSensitivity * 100)}%</Text>
-                <View style={styles.slider}>
-                  <TouchableOpacity
-                    onPress={() => setHapticSensitivity(Math.max(0, hapticSensitivity - 0.1))}
-                    style={styles.sliderButton}
-                  >
-                    <Text style={styles.sliderButtonText}>-</Text>
-                  </TouchableOpacity>
-                  <View style={styles.sliderTrack}>
-                    <View style={[styles.sliderFill, { width: `${hapticSensitivity * 100}%` }]} />
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setHapticSensitivity(Math.min(1, hapticSensitivity + 0.1))}
-                    style={styles.sliderButton}
-                  >
-                    <Text style={styles.sliderButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              <TouchableOpacity
-                onPress={async () => {
-                  if (isVibroacousticActive) {
-                    await stopVibroacousticSession();
-                  } else {
-                    await startVibroacousticSession(selectedVibroacousticMode);
-                    const frequency = parseInt(session.frequency);
-                    if (frequency < 100) {
-                      await generateBinauralBeat(200, frequency);
-                    } else {
-                      await playSolfeggio(frequency);
-                    }
-                  }
-                }}
-                style={[styles.actionButton, isVibroacousticActive && styles.actionButtonActive]}
-              >
-                <Text style={styles.actionButtonText}>
-                  {isVibroacousticActive ? 'Stop Vibroacoustics' : 'Start Vibroacoustics'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          
-          {showBinauralControls && (
-            <View style={styles.audioControlsPanel}>
-              <Text style={styles.controlsTitle}>Binaural Beats</Text>
-              
-              <View style={styles.controlGroup}>
-                <Text style={styles.controlLabel}>Intensity: {Math.round((binauralIntensity ?? 0) * 100)}%</Text>
-                <View style={[styles.slider, !isBinauralActive && { opacity: 0.5 }]}> 
-                  <TouchableOpacity
-                    onPress={() => setBinauralIntensity(Math.max(0, (binauralIntensity ?? 0) - 0.05))}
-                    style={styles.sliderButton}
-                    disabled={!isBinauralActive}
-                  >
-                    <Text style={styles.sliderButtonText}>-</Text>
-                  </TouchableOpacity>
-                  <View style={styles.sliderTrack}>
-                    <View style={[styles.sliderFill, { width: `${(binauralIntensity ?? 0) * 100}%` }]} />
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setBinauralIntensity(Math.min(1, (binauralIntensity ?? 0) + 0.05))}
-                    style={styles.sliderButton}
-                    disabled={!isBinauralActive}
-                  >
-                    <Text style={styles.sliderButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.controlGroup}>
-                <Text style={styles.controlLabel}>Base Frequency: {isMobileBinauralLocked ? '220Hz (Locked for mobile)' : `${binauralBaseFreq}Hz`}</Text>
+              <View style={styles.progressContainer} testID="session-progress">
                 <View
-                  style={[styles.slider, isMobileBinauralLocked && { opacity: 0.5 }]}
-                  pointerEvents={isMobileBinauralLocked ? 'none' : undefined}
+                  style={styles.progressBar}
+                  onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
+                  {...panResponder.panHandlers}
+                  testID="seek-slider"
                 >
-                  <TouchableOpacity
-                    onPress={() => setBinauralBaseFreq(Math.max(100, binauralBaseFreq - 50))}
-                    style={styles.sliderButton}
-                  >
-                    <Text style={[styles.sliderButtonText, isMobileBinauralLocked && styles.sliderButtonTextDisabled]}>-</Text>
+                  <View style={{ position: 'absolute', top: 17, left: 0, height: 6, width: '100%', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 3 }} />
+                  <View style={[styles.progressFill, { width: `${displayProgress}%` }]} />
+                  <View style={[styles.thumb, { left: sliderThumbLeft }]} />
+                </View>
+                <View style={styles.timeContainer}>
+                  <Text style={styles.timeText}>{formatTime(displaySeconds)}</Text>
+                  <Text style={styles.timeText}>{formatTime(maxSeconds)}</Text>
+                </View>
+              </View>
+
+              <View style={styles.controls} testID="session-controls">
+                <View style={styles.seekControls}>
+                  <TouchableOpacity onPress={() => handleSeek(-10)} style={styles.seekButton} activeOpacity={0.8} disabled={isPaused} testID="seek-back-button">
+                    <SkipBack size={24} color={!isPaused ? "#fff" : "rgba(255,255,255,0.4)"} />
+                    <Text style={[styles.seekText, isPaused && styles.seekTextDisabled]}>10s</Text>
                   </TouchableOpacity>
-                  <View style={styles.sliderTrack}>
-                    <View style={[styles.sliderFill, { width: `${((binauralBaseFreq - 100) / 400) * 100}%` }]} />
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setBinauralBaseFreq(Math.min(500, binauralBaseFreq + 50))}
-                    style={styles.sliderButton}
-                  >
-                    <Text style={[styles.sliderButtonText, isMobileBinauralLocked && styles.sliderButtonTextDisabled]}>+</Text>
+
+                  <TouchableOpacity onPress={handlePlayPause} style={styles.playButton} activeOpacity={0.8} testID="play-pause-button" disabled={isStartingPlayback}>
+                    <LinearGradient colors={["rgba(255,255,255,0.3)", "rgba(255,255,255,0.1)"]} style={styles.playButtonGradient}>
+                      {isPlaying ? <Pause size={40} color="#fff" /> : <Play size={40} color="#fff" style={{ marginLeft: 4 }} />}
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity onPress={() => handleSeek(10)} style={styles.seekButton} activeOpacity={0.8} disabled={isPaused} testID="seek-forward-button">
+                    <SkipForward size={24} color={!isPaused ? "#fff" : "rgba(255,255,255,0.4)"} />
+                    <Text style={[styles.seekText, isPaused && styles.seekTextDisabled]}>10s</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-              
-              <View style={styles.controlGroup}>
-                <Text style={styles.controlLabel}>Beat Frequency: {isMobileBinauralLocked ? '18Hz (Locked for mobile)' : `${binauralBeatFreq}Hz`}</Text>
-                <View
-                  style={[styles.slider, isMobileBinauralLocked && { opacity: 0.5 }]}
-                  pointerEvents={isMobileBinauralLocked ? 'none' : undefined}
+
+              {showVibroacousticControls && (
+                <VibroacousticControls
+                  selectedMode={selectedVibroacousticMode}
+                  onSelectMode={setSelectedVibroacousticMode}
+                  intensity={intensity}
+                  onSetIntensity={setVibroacousticIntensity}
+                  hapticSensitivity={hapticSensitivity}
+                  onSetHapticSensitivity={setHapticSensitivity}
+                  isActive={isVibroacousticActive}
+                  onToggle={handleVibroacousticToggle}
+                />
+              )}
+
+              {showBinauralControls && (
+                <BinauralControls
+                  binauralIntensity={binauralIntensity}
+                  onSetBinauralIntensity={setBinauralIntensity}
+                  isBinauralActive={isBinauralActive}
+                  binauralBaseFreq={binauralBaseFreq}
+                  onSetBaseFreq={setBinauralBaseFreq}
+                  binauralBeatFreq={binauralBeatFreq}
+                  onSetBeatFreq={setBinauralBeatFreq}
+                  isMobileBinauralLocked={isMobileBinauralLocked}
+                  canUseBinauralOnThisDevice={canUseBinauralOnThisDevice}
+                  onToggle={handleBinauralToggle}
+                />
+              )}
+
+              {showIsochronicControls && (
+                <IsochronicControls
+                  isochronicIntensity={isochronicIntensity}
+                  onSetIsochronicIntensity={setIsochronicIntensity}
+                  isIsochronicActive={isIsochronicActive}
+                  isochronicFreq={isochronicFreq}
+                  onSetIsochronicFreq={setIsochronicFreq}
+                  onToggle={handleIsochronicToggle}
+                />
+              )}
+
+              <View style={styles.infoCards}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Vibroacoustic controls"
+                  onPress={() => setShowVibroacousticControls((v) => !v)}
+                  style={[styles.infoIcon, isVibroacousticActive && styles.infoIconActive]}
+                  testID="icon-vibroacoustic"
+                  activeOpacity={0.8}
                 >
-                  <TouchableOpacity
-                    onPress={() => setBinauralBeatFreq(Math.max(1, binauralBeatFreq - 1))}
-                    style={styles.sliderButton}
-                  >
-                    <Text style={[styles.sliderButtonText, isMobileBinauralLocked && styles.sliderButtonTextDisabled]}>-</Text>
-                  </TouchableOpacity>
-                  <View style={styles.sliderTrack}>
-                    <View style={[styles.sliderFill, { width: `${(binauralBeatFreq / 40) * 100}%` }]} />
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setBinauralBeatFreq(Math.min(40, binauralBeatFreq + 1))}
-                    style={styles.sliderButton}
-                  >
-                    <Text style={[styles.sliderButtonText, isMobileBinauralLocked && styles.sliderButtonTextDisabled]}>+</Text>
-                  </TouchableOpacity>
-                </View>
+                  <Vibrate size={22} color={isVibroacousticActive ? "#0f0" : "#fff"} />
+                  <Text style={styles.infoIconText}>Vibro</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Binaural beats controls"
+                  onPress={() => setShowBinauralControls((v) => !v)}
+                  style={[styles.infoIcon, isBinauralActive && styles.infoIconActive]}
+                  testID="icon-binaural"
+                  activeOpacity={0.8}
+                >
+                  <Waves size={22} color={isBinauralActive ? "#0f0" : "#fff"} />
+                  <Text style={styles.infoIconText}>Binaural</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Isochronic tones controls"
+                  onPress={() => setShowIsochronicControls((v) => !v)}
+                  style={[styles.infoIcon, isIsochronicActive && styles.infoIconActive]}
+                  testID="icon-isochronic"
+                  activeOpacity={0.8}
+                >
+                  <CodeSquare size={22} color={isIsochronicActive ? "#0f0" : "#fff"} />
+                  <Text style={styles.infoIconText}>Iso</Text>
+                </TouchableOpacity>
               </View>
-              
-              <TouchableOpacity
-                onPress={async () => {
-                  if (!canUseBinauralOnThisDevice) {
-                    Alert.alert(
-                      'Feature Unavailable',
-                      'Binaural beats are only supported on web, except within Dynamic Energy Flow where they have a dedicated mobile mode.'
-                    );
-                    return;
-                  }
-                  if (isBinauralActive) {
-                    await stopVibroacousticSession();
-                    setIsBinauralActive(false);
-                  } else {
-                    const baseFreq = isMobileBinauralLocked ? 220 : binauralBaseFreq;
-                    const beatFreq = isMobileBinauralLocked ? 18 : binauralBeatFreq;
-                    await generateBinauralBeat(baseFreq, beatFreq);
-                    setIsBinauralActive(true);
-                  }
-                }}
-                style={[
-                  styles.actionButton,
-                  isBinauralActive && styles.actionButtonActive,
-                  !canUseBinauralOnThisDevice && { opacity: 0.5 }
-                ]}
-              >
-                <Text style={styles.actionButtonText}>
-                  {isBinauralActive
-                    ? 'Stop Binaural Beats'
-                    : !canUseBinauralOnThisDevice
-                      ? 'Binaural Beats (Web Only)'
-                      : isMobileBinauralLocked
-                        ? 'Start 18Hz Mobile Binaural'
-                        : 'Start Binaural Beats'}
-                </Text>
-              </TouchableOpacity>
             </View>
-          )}
-          
-          {showIsochronicControls && (
-            <View style={styles.audioControlsPanel}>
-              <Text style={styles.controlsTitle}>Isochronic Tones</Text>
-              
-              <View style={styles.controlGroup}>
-                <Text style={styles.controlLabel}>Intensity: {Math.round((isochronicIntensity ?? 0) * 100)}%</Text>
-                <View style={[styles.slider, !isIsochronicActive && { opacity: 0.5 }]}> 
-                  <TouchableOpacity
-                    onPress={() => setIsochronicIntensity(Math.max(0, (isochronicIntensity ?? 0) - 0.05))}
-                    style={styles.sliderButton}
-                    disabled={!isIsochronicActive}
-                  >
-                    <Text style={styles.sliderButtonText}>-</Text>
-                  </TouchableOpacity>
-                  <View style={styles.sliderTrack}>
-                    <View style={[styles.sliderFill, { width: `${(isochronicIntensity ?? 0) * 100}%` }]} />
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setIsochronicIntensity(Math.min(1, (isochronicIntensity ?? 0) + 0.05))}
-                    style={styles.sliderButton}
-                    disabled={!isIsochronicActive}
-                  >
-                    <Text style={styles.sliderButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.controlGroup}>
-                <Text style={styles.controlLabel}>Frequency: {isochronicFreq}Hz</Text>
-                <View style={styles.slider}>
-                  <TouchableOpacity
-                    onPress={() => setIsochronicFreq(Math.max(1, isochronicFreq - 1))}
-                    style={styles.sliderButton}
-                  >
-                    <Text style={styles.sliderButtonText}>-</Text>
-                  </TouchableOpacity>
-                  <View style={styles.sliderTrack}>
-                    <View style={[styles.sliderFill, { width: `${(isochronicFreq / 40) * 100}%` }]} />
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setIsochronicFreq(Math.min(40, isochronicFreq + 1))}
-                    style={styles.sliderButton}
-                  >
-                    <Text style={styles.sliderButtonText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.controlGroup}>
-                <Text style={styles.controlLabel}>Preset Frequencies</Text>
-                <View style={styles.modeSelector}>
-                  {[1, 4, 8, 10, 15, 20, 30, 40].map((freq) => (
-                    <TouchableOpacity
-                      key={freq}
-                      onPress={() => setIsochronicFreq(freq)}
-                      style={[
-                        styles.modeButton,
-                        isochronicFreq === freq && styles.modeButtonActive
-                      ]}
-                    >
-                      <Text style={[
-                        styles.modeButtonText,
-                        isochronicFreq === freq && styles.modeButtonTextActive
-                      ]}>
-                        {freq}Hz
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              
-              <TouchableOpacity
-                onPress={async () => {
-                  if (Platform.OS !== 'web') {
-                    Alert.alert(
-                      'Feature Unavailable',
-                      'Isochronic tones require Web Audio API for precise frequency modulation. This feature works on web browsers only.'
-                    );
-                    return;
-                  }
-                  if (isIsochronicActive) {
-                    await stopVibroacousticSession();
-                    setIsIsochronicActive(false);
-                  } else {
-                    await playIsochronicTone(isochronicFreq, 'square');
-                    setIsIsochronicActive(true);
-                  }
-                }}
-                style={[styles.actionButton, isIsochronicActive && styles.actionButtonActive, Platform.OS !== 'web' && { opacity: 0.5 }]}
-              >
-                <Text style={styles.actionButtonText}>
-                  {isIsochronicActive ? 'Stop Isochronic Tones' : Platform.OS !== 'web' ? 'Isochronic Tones (Web Only)' : 'Start Isochronic Tones'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <View style={styles.infoCards}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="Vibroacoustic controls"
-              onPress={() => setShowVibroacousticControls((v) => !v)}
-              style={[styles.infoIcon, isVibroacousticActive && styles.infoIconActive]}
-              testID="icon-vibroacoustic"
-              activeOpacity={0.8}
-            >
-              <Vibrate size={22} color={isVibroacousticActive ? "#0f0" : "#fff"} />
-              <Text style={styles.infoIconText}>Vibro</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="Binaural beats controls"
-              onPress={() => setShowBinauralControls((v) => !v)}
-              style={[styles.infoIcon, isBinauralActive && styles.infoIconActive]}
-              testID="icon-binaural"
-              activeOpacity={0.8}
-            >
-              <Waves size={22} color={isBinauralActive ? "#0f0" : "#fff"} />
-              <Text style={styles.infoIconText}>Binaural</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="Isochronic tones controls"
-              onPress={() => setShowIsochronicControls((v) => !v)}
-              style={[styles.infoIcon, isIsochronicActive && styles.infoIconActive]}
-              testID="icon-isochronic"
-              activeOpacity={0.8}
-            >
-              <CodeSquare size={22} color={isIsochronicActive ? "#0f0" : "#fff"} />
-              <Text style={styles.infoIconText}>Iso</Text>
-            </TouchableOpacity>
-
           </View>
-          </View>
-        </View>
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -1710,89 +1005,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bgSvg: {
-    position: 'absolute',
-  },
-  bgGeometry: {
-    position: 'absolute',
-    width: 520,
-    height: 520,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bgGeometryGlow: {
-    position: 'absolute',
-    width: 520,
-    height: 520,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bgMandala: {
-    position: 'absolute',
-    width: 460,
-    height: 460,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bgMandalaGlow: {
-    position: 'absolute',
-    width: 460,
-    height: 460,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  synchroContainer: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  synchroRotating: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  synchroFlower: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  synchroYantra: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  synchroCenter: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  breathingGuide: {
-    alignItems: "center",
-    marginBottom: 30,
-  },
-  breathIndicator: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    marginBottom: 10,
-  },
-  breathText: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.9)",
-    fontWeight: "600" as const,
-  },
   progressContainer: {
     width: "100%",
     marginBottom: 40,
@@ -1879,15 +1091,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 12,
   },
-  infoCard: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   infoIcon: {
     backgroundColor: "rgba(255,255,255,0.12)",
     paddingHorizontal: 14,
@@ -1906,141 +1109,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700" as const,
   },
-  infoText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600" as const,
-  },
   errorText: {
     color: "#fff",
     fontSize: 18,
     textAlign: "center",
-  },
-  audioControlsRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 20,
-    flexWrap: "wrap",
-    justifyContent: "center",
-  },
-  audioControlButton: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  audioControlButtonText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600" as const,
-  },
-  audioControlIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.3)",
-  },
-  audioControlIndicatorActive: {
-    backgroundColor: "#00ff96",
-  },
-  audioControlsPanel: {
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 30,
-    width: "100%",
-  },
-  controlsTitle: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold" as const,
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  controlGroup: {
-    marginBottom: 20,
-  },
-  controlLabel: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: 14,
-    fontWeight: "600" as const,
-    marginBottom: 10,
-  },
-  modeSelector: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  modeButton: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  modeButtonActive: {
-    backgroundColor: "rgba(0,255,150,0.2)",
-  },
-  modeButtonText: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: 12,
-    fontWeight: "600" as const,
-    textTransform: "capitalize" as const,
-  },
-  modeButtonTextActive: {
-    color: "#00ff96",
-  },
-  slider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  sliderButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sliderButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold" as const,
-  },
-  sliderButtonTextDisabled: {
-    opacity: 0.4,
-  },
-  sliderTrack: {
-    flex: 1,
-    height: 4,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  sliderFill: {
-    height: "100%",
-    backgroundColor: "#00ff96",
-    borderRadius: 2,
-  },
-  vibroacousticActiveCard: {
-    backgroundColor: "rgba(0,255,150,0.2)",
-  },
-  actionButton: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  actionButtonActive: {
-    backgroundColor: "rgba(0,255,150,0.3)",
-  },
-  actionButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "700" as const,
   },
 });
