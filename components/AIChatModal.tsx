@@ -63,6 +63,24 @@ function getMessageText(message: any): string {
     .join("\n");
 }
 
+function buildFallbackReply(userText: string): string {
+  const normalized = userText.toLowerCase();
+
+  if (normalized.includes("anx") || normalized.includes("panic") || normalized.includes("overwhelm")) {
+    return "Your words carry a lot of pressure right now. Press both feet into the floor, unclench your jaw, and slowly look around the room for 3 steady objects—what changed by even 2%?";
+  }
+
+  if (normalized.includes("sad") || normalized.includes("down") || normalized.includes("heavy") || normalized.includes("alone")) {
+    return "There is a heavy tone in what you shared. If this feeling had a shape or weather pattern, what would it be right now?";
+  }
+
+  if (normalized.includes("ang") || normalized.includes("frustrat") || normalized.includes("mad")) {
+    return "I can feel heat in your message. Is this anger more about a boundary that got crossed, or a need that stayed unmet?";
+  }
+
+  return "Let’s make this concrete: would you rather do a quick body scan, name the looping thought, or identify what you need most right now?";
+}
+
 export default React.memo(function AIChatModal({ visible, onClose }: AIChatModalProps) {
   const [userMessage, setUserMessage] = useState<string>("");
   const [isAITyping, setIsAITyping] = useState<boolean>(false);
@@ -73,6 +91,21 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
   } as any);
 
   const safeMessages: any[] = Array.isArray(agentMessages) ? agentMessages : [];
+
+  const appendFallbackAssistantMessage = useCallback((text: string) => {
+    if (typeof setMessages !== "function") return;
+
+    const fallbackMessage = {
+      id: `fallback-${Date.now()}`,
+      role: "assistant",
+      parts: [{ type: "text", text }],
+    };
+
+    setMessages((prev: any) => {
+      const current = Array.isArray(prev) ? prev : [];
+      return [...current, fallbackMessage];
+    });
+  }, [setMessages]);
 
   const hasInitialized = React.useRef(false);
 
@@ -109,10 +142,11 @@ export default React.memo(function AIChatModal({ visible, onClose }: AIChatModal
       await sendMessage(trimmedMessage);
     } catch (e) {
       console.log("[AIChatModal] send error", e);
+      appendFallbackAssistantMessage(buildFallbackReply(trimmedMessage));
     } finally {
       setIsAITyping(false);
     }
-  }, [isAITyping, sendMessage, userMessage]);
+  }, [appendFallbackAssistantMessage, isAITyping, sendMessage, userMessage]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
